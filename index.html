@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<title>HP POD Upload</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+</head>
+
+<body>
+
+<h2>POD Upload Test</h2>
+
+<input
+id="shipRef"
+placeholder="Input ShipRef">
+
+<br><br>
+
+<input
+type="file"
+id="camera"
+accept="image/*"
+capture="environment">
+
+<br><br>
+
+<button onclick="uploadImage()">
+
+Upload
+
+</button>
+
+<div id="msg"></div>
+
+<script>
+
+const client =
+window.supabase.createClient(
+'https://rhibtksoylmgtknlhavg.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJoaWJ0a3NveWxtZ3RrbmxoYXZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMwMTgzMjQsImV4cCI6MjEwODU5NDMyNH0.vNRFwBN4sGwRqFqvXfMNMTVb9YG7Qm_0Itb4oj8q8Jc'
+
+);
+
+let resizedBlob = null;
+
+document
+.getElementById('camera')
+.addEventListener('change', function(e){
+
+const file = e.target.files[0];
+
+const img = new Image();
+
+img.onload = function(){
+
+let width = img.width;
+let height = img.height;
+
+const MAX = 1280;
+
+if(width > height){
+
+if(width > MAX){
+
+height = Math.round(
+height * MAX / width
+);
+
+width = MAX;
+
+}
+
+}else{
+
+if(height > MAX){
+
+width = Math.round(
+width * MAX / height
+);
+
+height = MAX;
+
+}
+
+}
+
+const canvas =
+document.createElement('canvas');
+
+canvas.width = width;
+canvas.height = height;
+
+const ctx =
+canvas.getContext('2d');
+
+ctx.drawImage(
+img,
+0,
+0,
+width,
+height
+);
+
+canvas.toBlob(
+
+(blob)=>{
+
+resizedBlob = blob;
+
+document
+.getElementById('msg')
+.innerHTML =
+
+'Resize Complete<br>' +
+'File Size : ' +
+(blob.size/1024).toFixed(0) +
+' KB';
+
+},
+
+'image/jpeg',
+0.8
+
+);
+
+};
+
+img.src =
+URL.createObjectURL(file);
+
+});
+
+async function uploadImage(){
+
+const shipRef =
+document
+.getElementById('shipRef')
+.value
+.trim();
+
+if(!shipRef){
+
+alert('Input ShipRef');
+
+return;
+
+}
+
+if(!resizedBlob){
+
+alert('Take Photo First');
+
+return;
+
+}
+
+const fileName =
+
+`${shipRef}_${Date.now()}.jpg`;
+
+document
+.getElementById('msg')
+.innerHTML =
+'Uploading...';
+
+const uploadResult =
+
+await client
+.storage
+.from('pod')
+.upload(
+fileName,
+resizedBlob,
+{
+contentType:'image/jpeg'
+}
+);
+
+if(uploadResult.error){
+
+alert(uploadResult.error.message);
+
+return;
+
+}
+
+const imageUrl =
+
+client
+.storage
+.from('pod')
+.getPublicUrl(fileName)
+.data
+.publicUrl;
+
+const dbResult =
+
+await client
+.from('pod_photos')
+.insert({
+
+ship_ref: shipRef,
+
+file_name: fileName,
+
+image_url: imageUrl
+
+});
+
+if(dbResult.error){
+
+alert(dbResult.error.message);
+
+return;
+
+}
+
+document
+.getElementById('msg')
+.innerHTML =
+
+'Upload Success<br><br>' +
+
+imageUrl;
+
+}
+
+</script>
+
+</body>
+</html>
