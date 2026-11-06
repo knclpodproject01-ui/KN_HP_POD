@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+    <meta charset="utf-8">
+
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+
+    <title>HP POD Search</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script src="config.js"></script>
+
+    <style>
+        body {
+
+            font-family: Arial, sans-serif;
+            padding: 15px;
+            background: #f5f5f5;
+
+        }
+
+        .container {
+
+            max-width: 700px;
+            margin: auto;
+
+        }
+
+        .card {
+
+            background: white;
+            border-radius: 10px;
+            padding: 12px;
+            margin-top: 10px;
+            box-shadow:
+                0 1px 4px rgba(0, 0, 0, 0.15);
+
+        }
+
+        input {
+
+            width: 100%;
+            padding: 12px;
+            margin-top: 8px;
+            box-sizing: border-box;
+
+        }
+
+        button {
+
+            width: 100%;
+            padding: 12px;
+            margin-top: 10px;
+            border: none;
+            border-radius: 6px;
+            background: #0066cc;
+            color: white;
+            font-size: 16px;
+
+        }
+
+        .order-btn {
+
+            background: #28a745;
+
+        }
+
+        .status-d1 {
+
+            color: green;
+            font-weight: bold;
+
+        }
+
+        .status-ap {
+
+            color: red;
+            font-weight: bold;
+
+        }
+    </style>
+
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h2>
+
+            HP POD Search
+
+        </h2>
+
+        <input id="license_plate1" placeholder="หมวดทะเบียน">
+
+        <input id="license_plate2" placeholder="เลขทะเบียน">
+
+        <input id="license_plate3" placeholder="จังหวัด">
+
+        <input id="assignment_date" type="date">
+
+        <button onclick="searchOrders()">
+
+            ค้นหางาน
+
+        </button>
+
+        <div id="result" style="margin-top:15px;">
+
+        </div>
+
+    </div>
+
+    <script>
+
+        const client =
+            window.supabase.createClient(
+                window.APP_CONFIG.SUPABASE_URL,
+                window.APP_CONFIG.SUPABASE_KEY
+            );
+
+        function formatDateToYYYYMMDD(dateValue) {
+
+            if (!dateValue) {
+
+                return "";
+
+            }
+
+            return dateValue.replaceAll("-", "");
+
+        }
+
+        async function searchOrders() {
+
+            const lp1 =
+                document
+                    .getElementById(
+                        "license_plate1"
+                    )
+                    .value
+                    .trim();
+
+            const lp2 =
+                document
+                    .getElementById(
+                        "license_plate2"
+                    )
+                    .value
+                    .trim();
+
+            const lp3 =
+                document
+                    .getElementById(
+                        "license_plate3"
+                    )
+                    .value
+                    .trim();
+
+            const rawDate =
+                document
+                    .getElementById(
+                        "assignment_date"
+                    )
+                    .value;
+
+            const assignDate =
+                formatDateToYYYYMMDD(
+                    rawDate
+                );
+
+            if (
+                !lp1 ||
+                !lp2 ||
+                !lp3 ||
+                !assignDate
+            ) {
+
+                alert(
+                    "กรุณากรอกข้อมูลให้ครบทั้ง 4 ช่อง"
+                );
+
+                return;
+
+            }
+
+            document
+                .getElementById(
+                    "result"
+                )
+                .innerHTML =
+                "กำลังค้นหา...";
+
+            const result =
+                await client
+                    .from(
+                        "TBL_KN_HP_POD_SHIPREF"
+                    )
+                    .select(
+                        "id,order_number,status_code,assignment_date"
+                    )
+                    .eq(
+                        "license_plate1",
+                        lp1
+                    )
+                    .eq(
+                        "license_plate2",
+                        lp2
+                    )
+                    .eq(
+                        "license_plate3",
+                        lp3
+                    )
+                    .eq(
+                        "assignment_date",
+                        assignDate
+                    )
+                    .order(
+                        "order_number",
+                        {
+                            ascending: true
+                        }
+                    );
+
+            if (result.error) {
+
+                document
+                    .getElementById(
+                        "result"
+                    )
+                    .innerHTML =
+
+                    `<div class="card">
+${result.error.message}
+</div>`;
+
+                return;
+
+            }
+
+            if (
+                !result.data ||
+                result.data.length === 0
+            ) {
+
+                document
+                    .getElementById(
+                        "result"
+                    )
+                    .innerHTML =
+
+                    `
+<div class="card">
+
+ไม่พบข้อมูล
+
+</div>
+`;
+
+                return;
+
+            }
+
+            let html =
+
+                `
+<div class="card">
+
+พบข้อมูล
+
+<b>
+
+${result.data.length}
+
+</b>
+
+รายการ
+
+</div>
+`;
+
+            result.data.forEach(
+
+                row => {
+
+                    let statusText =
+                        row.status_code || "-";
+
+                    let statusClass = "";
+
+                    if (
+                        row.status_code === "D1"
+                    ) {
+
+                        statusClass =
+                            "status-d1";
+
+                    }
+
+                    if (
+                        row.status_code === "AP"
+                    ) {
+
+                        statusClass =
+                            "status-ap";
+
+                    }
+
+                    html +=
+
+                        `
+<div class="card">
+
+<div>
+
+<b>
+
+Order Number
+
+</b>
+
+</div>
+
+<div>
+
+${row.order_number}
+
+</div>
+
+<br>
+
+<div>
+
+<b>
+
+Assignment Date
+
+</b>
+
+</div>
+
+<div>
+
+${row.assignment_date}
+
+</div>
+
+<br>
+
+<div>
+
+<b>
+
+Status
+
+</b>
+
+</div>
+
+<div class="${statusClass}">
+
+${statusText}
+
+</div>
+
+<br>
+
+<button
+class="order-btn"
+onclick="openOrder(
+'${row.id}',
+'${encodeURIComponent(lp1)}',
+'${encodeURIComponent(lp2)}',
+'${encodeURIComponent(lp3)}',
+'${assignDate}'
+)">
+
+เปิด POD
+
+</button>
+
+</div>
+`;
+
+                }
+
+            );
+
+            document
+                .getElementById(
+                    "result"
+                )
+                .innerHTML =
+                html;
+
+        }
+
+        function openOrder(
+
+            id,
+            lp1,
+            lp2,
+            lp3,
+            assignDate
+
+        ) {
+
+            window.location.href =
+
+                `index.html
+?id=${id}
+&lp1=${lp1}
+&lp2=${lp2}
+&lp3=${lp3}
+&date=${assignDate}`;
+
+        }
+
+        window.onload =
+            function () {
+
+                const params =
+                    new URLSearchParams(
+                        window.location.search
+                    );
+
+                const lp1 =
+                    params.get("lp1");
+
+                const lp2 =
+                    params.get("lp2");
+
+                const lp3 =
+                    params.get("lp3");
+
+                const date =
+                    params.get("date");
+
+                if (
+                    lp1 &&
+                    lp2 &&
+                    lp3 &&
+                    date
+                ) {
+
+                    document
+                        .getElementById(
+                            "license_plate1"
+                        )
+                        .value =
+                        lp1;
+
+                    document
+                        .getElementById(
+                            "license_plate2"
+                        )
+                        .value =
+                        lp2;
+
+                    document
+                        .getElementById(
+                            "license_plate3"
+                        )
+                        .value =
+                        lp3;
+
+                    const displayDate =
+
+                        date.substring(0, 4)
+                        +
+                        "-"
+                        +
+                        date.substring(4, 6)
+                        +
+                        "-"
+                        +
+                        date.substring(6, 8);
+
+                    document
+                        .getElementById(
+                            "assignment_date"
+                        )
+                        .value =
+                        displayDate;
+
+                    searchOrders();
+
+                }
+
+            };
+
+    </script>
+
+</body>
+
+</html>

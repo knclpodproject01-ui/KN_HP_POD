@@ -1,235 +1,871 @@
 <!DOCTYPE html>
 <html>
+
 <head>
 
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta charset="utf-8">
 
-<title>HP POD Upload</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <title>HP POD Upload</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+
+    <style>
+        body {
+            font-family: Arial;
+            padding: 15px;
+        }
+
+        .card {
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        input,
+        button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 8px;
+        }
+
+        img {
+            width: 100%;
+            margin-top: 5px;
+            border: 1px solid #ddd;
+        }
+
+        .status-btn {
+            margin-top: 10px;
+        }
+
+        .active {
+            background: #28a745;
+            color: white;
+        }
+
+        .reason-active {
+            background: #ff9800;
+            color: white;
+        }
+    </style>
 
 </head>
 
 <body>
 
-<h2>POD Upload Test</h2>
+    <h2>HP POD Upload</h2>
 
-<input
-id="shipRef"
-placeholder="Input ShipRef">
+    <div class="card">
+
+        <div id="orderInfo">
+
+            Loading...
+
+        </div>
+
+    </div>
+
+    <br>
+
+    <h3>ภาพสถานที่จัดส่ง</h3>
+
+    <input type="file" id="img1" accept="image/*" capture="environment">
+
+    <img id="preview1">
+
+    <br>
+
+    <h3>ภาพสินค้า</h3>
+
+    <input type="file" id="img2" accept="image/*" capture="environment">
+
+    <img id="preview2">
+
+    <br>
+
+    <h3>ภาพเอกสารการจัดส่ง</h3>
+
+    <input type="file" id="img3" accept="image/*" capture="environment">
+
+    <img id="preview3">
+
+    <br>
+
+    <h3>Status</h3>
+
+    <button class="status-btn" id="btnD1" onclick="setStatus('D1')">
+
+        D1 : ดำเนินการขนถ่ายสินค้า ณ จุดส่งมอบเสร็จสิ้นแล้ว
+
+    </button>
+
+    <button class="status-btn" id="btnAP" onclick="setStatus('AP')">
+
+        AP : การจัดส่งไม่สำเร็จ
+
+    </button>
+
+    <div id="reasonArea" style="display:none">
+
+        <h3>Reason</h3>
+
+        <button id="btnAK" onclick="setReason('AK')">
+
+            AK : สินค้าชำรุด
+
+        </button>
+
+        <button id="btnBS" onclick="setReason('BS')">
+
+            BS : ลูกค้าปฏิเสธการรับสินค้า
+
+        </button>
+
+        <button id="btnA1" onclick="setReason('A1')">
+
+            A1 : การจัดส่งไม่สำเร็จ / ช่วงเวลาที่กำหนดไว้
+
+        </button>
+
+        <div id="reasonSelected">
+
+        </div>
+
+    </div>
+
+    <br>
+
+    <button onclick="savePOD()">
+
+        UPLOAD POD
+
+    </button>
+
+    <div id="msg"></div>
+
+    <script>
+
+        const client =
+            window.supabase.createClient(
+                window.APP_CONFIG.SUPABASE_URL,
+                window.APP_CONFIG.SUPABASE_KEY
+            );
+
+        const urlParams =
+            new URLSearchParams(
+                window.location.search
+            );
+
+        const orderId =
+            urlParams.get("id");
+
+        const licensePlate1 =
+            urlParams.get("lp1");
+
+        const licensePlate2 =
+            urlParams.get("lp2");
+
+        const licensePlate3 =
+            urlParams.get("lp3");
+
+        const assignmentDate =
+            urlParams.get("date");
+
+        if (!orderId) {
+
+            alert(
+                "Missing Order ID"
+            );
+
+            window.location.href =
+                "search.html";
+
+        }
+
+        let orderData = null;
+
+        let statusCode = null;
+
+        let reasonCode = null;
+
+        let latitude = 0;
+
+        let longitude = 0;
+
+        let image1Blob = null;
+
+        let image2Blob = null;
+
+        let image3Blob = null;
+
+        navigator.geolocation.getCurrentPosition(
+
+            function (position) {
+
+                latitude =
+                    position.coords.latitude;
+
+                longitude =
+                    position.coords.longitude;
+
+            },
+
+            function (error) {
+
+                console.log(
+                    error.message
+                );
+
+                latitude = 0;
+
+                longitude = 0;
+
+            },
+
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            }
+
+        );
+
+        async function loadOrder() {
+
+            const result =
+
+                await client
+                    .from(
+                        "TBL_KN_HP_POD_SHIPREF"
+                    )
+                    .select("*")
+                    .eq(
+                        "id",
+                        orderId
+                    )
+                    .single();
+
+            if (result.error) {
+
+                alert(
+                    "Order Not Found"
+                );
+
+                return;
+
+            }
+
+            orderData =
+                result.data;
+
+            document
+                .getElementById(
+                    "orderInfo"
+                )
+                .innerHTML =
+
+                `
+<h2>
+${orderData.order_number}
+</h2>
+
+<b>
+Assignment Date :
+</b>
+
+${orderData.assignment_date}
 
 <br><br>
 
-<input
-type="file"
-id="camera"
-accept="image/*"
-capture="environment">
+<b>
+Current Status :
+</b>
+
+${orderData.status_code || "-"}
+`;
+
+        }
+
+        loadOrder();
+
+        function setStatus(value) {
 
-<br><br>
+            statusCode =
+                value;
 
-<button onclick="uploadImage()">
+            document
+                .getElementById(
+                    "btnD1"
+                )
+                .classList
+                .remove(
+                    "active"
+                );
 
-Upload
+            document
+                .getElementById(
+                    "btnAP"
+                )
+                .classList
+                .remove(
+                    "active"
+                );
 
-</button>
+            if (value === "D1") {
 
-<div id="msg"></div>
+                document
+                    .getElementById(
+                        "btnD1"
+                    )
+                    .classList
+                    .add(
+                        "active"
+                    );
 
-<script>
+                reasonCode =
+                    "NS";
 
-const client =
-window.supabase.createClient(
-'https://rhibtksoylmgtknlhavg.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJoaWJ0a3NveWxtZ3RrbmxoYXZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMwMTgzMjQsImV4cCI6MjEwODU5NDMyNH0.vNRFwBN4sGwRqFqvXfMNMTVb9YG7Qm_0Itb4oj8q8Jc'
+                document
+                    .getElementById(
+                        "reasonArea"
+                    )
+                    .style.display =
+                    "none";
 
-);
+            }
 
-let resizedBlob = null;
+            if (value === "AP") {
 
-document
-.getElementById('camera')
-.addEventListener('change', function(e){
+                document
+                    .getElementById(
+                        "btnAP"
+                    )
+                    .classList
+                    .add(
+                        "active"
+                    );
 
-const file = e.target.files[0];
+                reasonCode =
+                    null;
 
-const img = new Image();
+                document
+                    .getElementById(
+                        "reasonArea"
+                    )
+                    .style.display =
+                    "block";
 
-img.onload = function(){
+            }
 
-let width = img.width;
-let height = img.height;
+        }
 
-const MAX = 1280;
+        function setReason(value) {
 
-if(width > height){
+            reasonCode =
+                value;
 
-if(width > MAX){
+            document
+                .getElementById(
+                    "reasonSelected"
+                )
+                .innerHTML =
 
-height = Math.round(
-height * MAX / width
-);
+                "<b>Reason :</b> "
+                + value;
 
-width = MAX;
+        }
 
-}
+        function resizeImage(
+            file,
+            callback
+        ) {
 
-}else{
+            const img =
+                new Image();
 
-if(height > MAX){
+            img.onload =
+                function () {
 
-width = Math.round(
-width * MAX / height
-);
+                    let width =
+                        img.width;
 
-height = MAX;
+                    let height =
+                        img.height;
 
-}
+                    const MAX =
+                        1280;
 
-}
+                    if (width > height) {
 
-const canvas =
-document.createElement('canvas');
+                        if (width > MAX) {
 
-canvas.width = width;
-canvas.height = height;
+                            height =
+                                Math.round(
+                                    height *
+                                    MAX /
+                                    width
+                                );
 
-const ctx =
-canvas.getContext('2d');
+                            width =
+                                MAX;
 
-ctx.drawImage(
-img,
-0,
-0,
-width,
-height
-);
+                        }
 
-canvas.toBlob(
+                    } else {
 
-(blob)=>{
+                        if (height > MAX) {
 
-resizedBlob = blob;
+                            width =
+                                Math.round(
+                                    width *
+                                    MAX /
+                                    height
+                                );
 
-document
-.getElementById('msg')
-.innerHTML =
+                            height =
+                                MAX;
 
-'Resize Complete<br>' +
-'File Size : ' +
-(blob.size/1024).toFixed(0) +
-' KB';
+                        }
 
-},
+                    }
 
-'image/jpeg',
-0.8
+                    const canvas =
+                        document.createElement(
+                            "canvas"
+                        );
 
-);
+                    canvas.width =
+                        width;
 
-};
+                    canvas.height =
+                        height;
 
-img.src =
-URL.createObjectURL(file);
+                    const ctx =
+                        canvas.getContext(
+                            "2d"
+                        );
 
-});
+                    ctx.drawImage(
+                        img,
+                        0,
+                        0,
+                        width,
+                        height
+                    );
 
-async function uploadImage(){
+                    canvas.toBlob(
 
-const shipRef =
-document
-.getElementById('shipRef')
-.value
-.trim();
+                        function (blob) {
 
-if(!shipRef){
+                            callback(
+                                blob
+                            );
 
-alert('Input ShipRef');
+                        },
 
-return;
+                        "image/jpeg",
+                        0.8
 
-}
+                    );
 
-if(!resizedBlob){
+                };
 
-alert('Take Photo First');
+            img.src =
+                URL.createObjectURL(
+                    file
+                );
 
-return;
+        }
 
-}
+        document
+            .getElementById(
+                "img1"
+            )
+            .addEventListener(
+                "change",
+                function (e) {
 
-const fileName =
+                    const file =
+                        e.target.files[0];
 
-`${shipRef}_${Date.now()}.jpg`;
+                    if (!file) {
+                        return;
+                    }
 
-document
-.getElementById('msg')
-.innerHTML =
-'Uploading...';
+                    resizeImage(
 
-const uploadResult =
+                        file,
 
-await client
-.storage
-.from('pod')
-.upload(
-fileName,
-resizedBlob,
-{
-contentType:'image/jpeg'
-}
-);
+                        function (blob) {
 
-if(uploadResult.error){
+                            image1Blob =
+                                blob;
 
-alert(uploadResult.error.message);
+                            document
+                                .getElementById(
+                                    "preview1"
+                                )
+                                .src =
+                                URL.createObjectURL(
+                                    blob
+                                );
 
-return;
+                        }
 
-}
+                    );
 
-const imageUrl =
+                }
 
-client
-.storage
-.from('pod')
-.getPublicUrl(fileName)
-.data
-.publicUrl;
+            );
 
-const dbResult =
+        document
+            .getElementById(
+                "img2"
+            )
+            .addEventListener(
+                "change",
+                function (e) {
 
-await client
-.from('pod_photos')
-.insert({
+                    const file =
+                        e.target.files[0];
 
-ship_ref: shipRef,
+                    if (!file) {
+                        return;
+                    }
 
-file_name: fileName,
+                    resizeImage(
 
-image_url: imageUrl
+                        file,
 
-});
+                        function (blob) {
 
-if(dbResult.error){
+                            image2Blob =
+                                blob;
 
-alert(dbResult.error.message);
+                            document
+                                .getElementById(
+                                    "preview2"
+                                )
+                                .src =
+                                URL.createObjectURL(
+                                    blob
+                                );
 
-return;
+                        }
 
-}
+                    );
 
-document
-.getElementById('msg')
-.innerHTML =
+                }
 
-'Upload Success<br><br>' +
+            );
 
-imageUrl;
+        document
+            .getElementById(
+                "img3"
+            )
+            .addEventListener(
+                "change",
+                function (e) {
 
-}
+                    const file =
+                        e.target.files[0];
 
-</script>
+                    if (!file) {
+                        return;
+                    }
+
+                    resizeImage(
+
+                        file,
+
+                        function (blob) {
+
+                            image3Blob =
+                                blob;
+
+                            document
+                                .getElementById(
+                                    "preview3"
+                                )
+                                .src =
+                                URL.createObjectURL(
+                                    blob
+                                );
+
+                        }
+
+                    );
+
+                }
+
+            );
+
+        async function uploadFile(
+            blob,
+            fileName
+        ) {
+
+            const result =
+
+                await client
+                    .storage
+                    .from(
+                        "BUCKET_HP_POD_IMAGES"
+                    )
+                    .upload(
+                        fileName,
+                        blob,
+                        {
+                            contentType:
+                                "image/jpeg",
+
+                            upsert: false
+                        }
+                    );
+
+            if (
+                result.error
+            ) {
+
+                throw new Error(
+                    result.error.message
+                );
+
+            }
+
+            return client
+                .storage
+                .from(
+                    "BUCKET_HP_POD_IMAGES"
+                )
+                .getPublicUrl(
+                    fileName
+                )
+                .data
+                .publicUrl;
+
+        }
+
+        async function savePOD() {
+
+            try {
+
+                if (
+                    !statusCode
+                ) {
+
+                    alert(
+                        "กรุณาเลือก Status"
+                    );
+
+                    return;
+
+                }
+
+                if (
+                    statusCode === "AP"
+                    &&
+                    !reasonCode
+                ) {
+
+                    alert(
+                        "กรุณาเลือก Reason"
+                    );
+
+                    return;
+
+                }
+
+                if (
+                    !image1Blob ||
+                    !image2Blob ||
+                    !image3Blob
+                ) {
+
+                    alert(
+                        "กรุณาถ่ายรูปให้ครบ 3 รูป"
+                    );
+
+                    return;
+
+                }
+
+                if (
+                    latitude === 0 ||
+                    longitude === 0
+                ) {
+
+                    alert(
+                        "ไม่สามารถอ่าน GPS ได้"
+                    );
+
+                    return;
+
+                }
+
+                document
+                    .getElementById(
+                        "msg"
+                    )
+                    .innerHTML =
+
+                    "Uploading Images and Saving POD...";
+
+                const orderNo =
+                    orderData.order_number;
+
+                const timestamp =
+                    new Date()
+                        .toISOString()
+                        .replace(
+                            /[-:TZ.]/g,
+                            ""
+                        )
+                        .substring(
+                            0,
+                            14
+                        );
+
+                const [
+
+                    image1Url,
+                    image2Url,
+                    image3Url
+
+                ] = await Promise.all([
+
+                    uploadFile(
+
+                        image1Blob,
+
+                        `${orderNo}_img1_${timestamp}.jpg`
+
+                    ),
+
+                    uploadFile(
+
+                        image2Blob,
+
+                        `${orderNo}_img2_${timestamp}.jpg`
+
+                    ),
+
+                    uploadFile(
+
+                        image3Blob,
+
+                        `${orderNo}_img3_${timestamp}.jpg`
+
+                    )
+
+                ]);
+
+                const updateResult =
+
+                    await client
+
+                        .from(
+                            "TBL_KN_HP_POD_SHIPREF"
+                        )
+
+                        .update({
+
+                            image1_url:
+                                image1Url,
+
+                            image2_url:
+                                image2Url,
+
+                            image3_url:
+                                image3Url,
+
+                            status_code:
+                                statusCode,
+
+                            reason_code:
+                                reasonCode,
+
+                            latitude:
+                                String(
+                                    latitude
+                                ),
+
+                            longitude:
+                                String(
+                                    longitude
+                                ),
+
+                            upload_timestamp:
+                                new Date()
+                                    .toISOString()
+
+                        })
+
+                        .eq(
+                            "id",
+                            orderId
+                        );
+
+                if (
+                    updateResult.error
+                ) {
+
+                    alert(
+                        updateResult.error.message
+                    );
+
+                    return;
+
+                }
+
+                document
+                    .getElementById(
+                        "msg"
+                    )
+                    .innerHTML =
+
+                    "Upload Success";
+
+                alert(
+                    "Upload Success"
+                );
+
+                window.location.href =
+
+                    `search.html
+?lp1=${encodeURIComponent(licensePlate1)}
+&lp2=${encodeURIComponent(licensePlate2)}
+&lp3=${encodeURIComponent(licensePlate3)}
+&date=${encodeURIComponent(assignmentDate)}`;
+
+            }
+            catch (err) {
+
+                console.error(
+                    err
+                );
+
+                alert(
+                    err.message
+                );
+
+                document
+                    .getElementById(
+                        "msg"
+                    )
+                    .innerHTML =
+
+                    "Upload Failed";
+
+            }
+
+        }
+
+    </script>
 
 </body>
+
 </html>
