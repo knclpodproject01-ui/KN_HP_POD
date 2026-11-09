@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>HP POD Report</title>
+
+    <!-- Supabase Client & Config -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <!-- SheetJS (XLSX) สำหรับ Export เป็นไฟล์ Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            padding: 8px;
+            background: #f4f6f8;
+            color: #333;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .container {
+            width: 100%;
+        }
+
+        h2 {
+            font-size: 18px;
+            margin-bottom: 8px;
+            color: #1a1a1a;
+        }
+
+        .search-card {
+            background: white;
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 8px;
+            border: 1px solid #e0e0e0;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .form-label {
+            font-size: 12px;
+            font-weight: bold;
+            color: #444;
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        .date-group {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+
+        .date-input-wrap {
+            flex: 1;
+            min-width: 0;
+        }
+
+        input[type="date"] {
+            width: 100%;
+            padding: 8px;
+            font-size: 13px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background: white;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 6px;
+        }
+
+        .search-btn {
+            flex: 1;
+            height: 38px;
+            border: none;
+            border-radius: 4px;
+            background: #0066cc;
+            color: white;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .search-btn:active {
+            background: #004999;
+        }
+
+        .export-btn {
+            flex: 1;
+            height: 38px;
+            border: none;
+            border-radius: 4px;
+            background: #28a745;
+            color: white;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .export-btn:active {
+            background: #1e7e34;
+        }
+
+        .export-btn:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .summary-bar {
+            background: #eef2f7;
+            padding: 6px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* ตารางรายงานแบบ Responsive */
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            text-align: left;
+            white-space: nowrap;
+        }
+
+        th {
+            background: #0066cc;
+            color: white;
+            padding: 8px 10px;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 6px 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+
+        tr:hover {
+            background: #f1f5f9;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h2>HP POD Report</h2>
+
+    <div class="search-card">
+        <div class="date-group">
+            <div class="date-input-wrap">
+                <label class="form-label">ตั้งแต่วันที่ (From)</label>
+                <input id="date_from" type="date">
+            </div>
+            <div class="date-input-wrap">
+                <label class="form-label">ถึงวันที่ (To)</label>
+                <input id="date_to" type="date">
+            </div>
+        </div>
+
+        <div class="btn-group">
+            <button class="search-btn" onclick="searchReport()">🔍 ค้นหา</button>
+            <button id="btnExport" class="export-btn" onclick="exportToExcel()" disabled>📊 Export to Excel</button>
+        </div>
+    </div>
+
+    <div id="result"></div>
+
+</div>
+
+<script>
+
+const client = window.supabase.createClient(
+    window.APP_CONFIG.SUPABASE_URL,
+    window.APP_CONFIG.SUPABASE_KEY
+);
+
+let fetchedReportData = [];
+
+function formatDateToYYYYMMDD(dateValue) {
+    if (!dateValue) return "";
+    return dateValue.replaceAll("-", "");
+}
+
+// กำหนดค่าเริ่มต้นให้อนุมานเป็นวันที่ปัจจุบัน
+window.onload = function () {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById("date_from").value = today;
+    document.getElementById("date_to").value = today;
+};
+
+async function searchReport() {
+    const rawFrom = document.getElementById("date_from").value;
+    const rawTo = document.getElementById("date_to").value;
+
+    const dateFrom = formatDateToYYYYMMDD(rawFrom);
+    const dateTo = formatDateToYYYYMMDD(rawTo);
+
+    if (!dateFrom || !dateTo) {
+        alert("กรุณาเลือกช่วงวันที่ให้ครบถ้วน");
+        return;
+    }
+
+    if (dateFrom > dateTo) {
+        alert("วันที่เริ่มต้นต้องไม่มากกว่าวันที่สิ้นสุด");
+        return;
+    }
+
+    const btnExport = document.getElementById("btnExport");
+    btnExport.disabled = true;
+
+    document.getElementById("result").innerHTML = `<div style="text-align:center; padding:15px; font-size:13px; color:#666;">กำลังโหลดข้อมูลรายงาน...</div>`;
+
+    // Query: select * from TBL_KN_HP_POD_SHIPREF where assignment_date >= text1 and assignment_date <= text2
+    const result = await client
+        .from("TBL_KN_HP_POD_SHIPREF")
+        .select("*")
+        .gte("assignment_date", dateFrom)
+        .lte("assignment_date", dateTo)
+        .order("assignment_date", { ascending: true });
+
+    if (result.error) {
+        document.getElementById("result").innerHTML = `<div style="color:red; text-align:center; padding:10px;">${result.error.message}</div>`;
+        return;
+    }
+
+    if (!result.data || result.data.length === 0) {
+        document.getElementById("result").innerHTML = `<div style="text-align:center; color:#777; padding:15px; font-size:13px;">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</div>`;
+        fetchedReportData = [];
+        return;
+    }
+
+    fetchedReportData = result.data;
+    btnExport.disabled = false;
+
+    renderTable(fetchedReportData);
+}
+
+function renderTable(data) {
+    // ดึงรายชื่อ Field ทั้งหมดจากข้อมูลรายการแรกเพื่อทำเป็นหัว Column
+    const headers = Object.keys(data[0]);
+
+    let tableHtml = `
+    <div class="summary-bar">
+        <span>จำนวนรายการทั้งหมด: ${data.length} รายการ</span>
+    </div>
+
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    ${headers.map(header => `<th>${header}</th>`).join('')}
+                </tr>
+            </thead>
+            <tbody>
+                ${data.map(row => `
+                    <tr>
+                        ${headers.map(header => `<td>${row[header] !== null && row[header] !== undefined ? row[header] : ''}</td>`).join('')}
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    </div>
+    `;
+
+    document.getElementById("result").innerHTML = tableHtml;
+}
+
+function exportToExcel() {
+    if (!fetchedReportData || fetchedReportData.length === 0) {
+        alert("ไม่มีข้อมูลสำหรับ Export");
+        return;
+    }
+
+    const rawFrom = document.getElementById("date_from").value;
+    const rawTo = document.getElementById("date_to").value;
+
+    // สร้าง Workbook จากข้อมูล JSON
+    const worksheet = XLSX.utils.json_to_sheet(fetchedReportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "POD_Report");
+
+    // ส่งออกเป็นไฟล์ Excel (.xlsx)
+    const fileName = `HP_POD_Report_${formatDateToYYYYMMDD(rawFrom)}_to_${formatDateToYYYYMMDD(rawTo)}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+}
+
+</script>
+
+</body>
+</html>
