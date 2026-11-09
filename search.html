@@ -7,6 +7,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
+    <!-- เพิ่ม Library สำหรับช่วยอ่าน Barcode จากกล้อง (Html5-qrcode) -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
     <style>
         * {
@@ -17,172 +19,233 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            padding: 8px;
+            padding: 6px;
             background: #f4f6f8;
             color: #333;
             max-width: 500px;
             margin: 0 auto;
         }
 
-        .container {
-            width: 100%;
-        }
-
         h2 {
-            font-size: 18px;
-            margin-bottom: 8px;
+            font-size: 16px;
+            margin-bottom: 6px;
             color: #1a1a1a;
         }
 
         .search-card {
             background: white;
-            border-radius: 8px;
-            padding: 10px;
-            margin-bottom: 8px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            border-radius: 6px;
+            padding: 8px;
+            margin-bottom: 6px;
             border: 1px solid #e0e0e0;
         }
 
         .form-label {
-            font-size: 13px;
+            font-size: 12px;
             font-weight: bold;
             color: #444;
-            margin-bottom: 4px;
-            display: block;
+            margin-bottom: 2px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
-        /* จัดช่องทะเบียนรถให้อยู่ในบรรทัดเดียวกัน */
+        .label-action {
+            font-size: 11px;
+            color: #0066cc;
+            cursor: pointer;
+            font-weight: normal;
+        }
+
         .plate-row {
             display: flex;
-            gap: 6px;
-            margin-bottom: 8px;
+            gap: 4px;
+            margin-bottom: 6px;
+            width: 100%;
         }
 
         .plate-row input {
-            padding: 10px 8px;
-            font-size: 14px;
+            width: 100%;
+            min-width: 0; 
+            padding: 8px 4px;
+            font-size: 13px;
             border: 1px solid #ccc;
-            border-radius: 6px;
+            border-radius: 4px;
             text-align: center;
         }
 
-        #license_plate1 { flex: 2; } /* หมวดอักษร */
-        #license_plate2 { flex: 3; } /* เลขทะเบียน */
-        #license_plate3 { flex: 3; } /* จังหวัด */
+        #license_plate1 { flex: 2; }
+        #license_plate2 { flex: 3.5; }
+        #license_plate3 { flex: 4.5; }
+
+        .date-row {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 6px;
+        }
 
         input[type="date"] {
-            width: 100%;
-            padding: 10px;
-            font-size: 14px;
+            flex: 1;
+            min-width: 0;
+            padding: 7px 6px;
+            font-size: 13px;
             border: 1px solid #ccc;
-            border-radius: 6px;
+            border-radius: 4px;
             background: white;
-            margin-bottom: 8px;
+        }
+
+        .today-btn {
+            padding: 0 8px;
+            background: #e9ecef;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            color: #495057;
+            cursor: pointer;
         }
 
         .search-btn {
             width: 100%;
-            height: 44px;
+            height: 38px;
             border: none;
-            border-radius: 6px;
+            border-radius: 4px;
             background: #0066cc;
             color: white;
-            font-size: 15px;
+            font-size: 13px;
             font-weight: bold;
             cursor: pointer;
         }
 
-        .search-btn:active {
-            background: #004999;
-        }
-
-        .card {
-            background: white;
-            border-radius: 8px;
-            padding: 10px;
-            margin-top: 8px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-            border: 1px solid #e0e0e0;
-            font-size: 13px;
-        }
-
-        .order-item-header {
+        .summary-bar {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            background: #eef2f7;
+            padding: 6px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: bold;
             margin-bottom: 6px;
         }
 
-        .order-number {
-            font-size: 15px;
-            font-weight: bold;
-            color: #0066cc;
+        /* จัดแถวช่องกรองด่วน + ปุ่มสแกนให้อยู่ด้วยกัน */
+        .filter-row {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 6px;
         }
 
-        .status-badge {
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: bold;
+        .quick-filter-input {
+            flex: 1;
+            min-width: 0;
+            padding: 8px 10px;
+            font-size: 13px;
+            border: 1px solid #0066cc;
+            border-radius: 6px;
+            outline: none;
+            background: #fff;
         }
 
-        .status-d1 { background: #d4edda; color: #155724; }
-        .status-ap { background: #f8d7da; color: #721c24; }
-        .status-pending { background: #fff3cd; color: #856404; }
-
-        .order-btn {
-            width: 100%;
-            height: 38px;
+        .scan-barcode-btn {
+            padding: 0 12px;
             background: #28a745;
             color: white;
             border: none;
             border-radius: 6px;
-            font-size: 14px;
-            font-weight: bold;
-            margin-top: 8px;
-            cursor: pointer;
-        }
-
-        .order-btn:active {
-            background: #1e7e34;
-        }
-
-        .summary-card {
-            text-align: center;
             font-size: 13px;
             font-weight: bold;
-            background: #eef2f7;
-            padding: 8px;
+            cursor: pointer;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* ส่วนแสดงกล้องสแกน */
+        #reader {
+            width: 100%;
+            max-height: 250px;
+            background: #000;
+            border-radius: 6px;
+            margin-bottom: 6px;
+            display: none;
+        }
+
+        .order-row-compact {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 8px 10px;
+            margin-bottom: 4px;
+        }
+
+        .order-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+            flex: 1;
+        }
+
+        .order-number {
+            font-size: 13px;
+            font-weight: bold;
+            color: #0066cc;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .status-text {
+            font-size: 11px;
+            color: #666;
+        }
+
+        .status-d1 { color: #155724; font-weight: bold; }
+        .status-ap { color: #721c24; font-weight: bold; }
+        .status-pending { color: #b78103; font-weight: bold; }
+
+        .action-btn {
+            padding: 6px 12px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            white-space: nowrap;
+            margin-left: 8px;
         }
 
         .column-header {
-            padding: 8px 10px;
-            border-radius: 6px;
+            padding: 6px 8px;
+            border-radius: 4px;
             color: white;
             text-align: center;
             font-weight: bold;
-            margin-top: 10px;
-            font-size: 13px;
+            margin-top: 6px;
+            font-size: 12px;
         }
 
         .pending-header { background: #ff9800; }
         .completed-header { background: #28a745; }
 
-        .completed-section {
-            margin-top: 10px;
-        }
-
         .collapse-btn {
             background: #6c757d;
             color: white;
             width: 100%;
-            padding: 10px;
+            padding: 6px;
             border: none;
-            border-radius: 6px;
-            font-size: 13px;
+            border-radius: 4px;
+            font-size: 12px;
             font-weight: bold;
             cursor: pointer;
-            margin-top: 10px;
+            margin-top: 6px;
         }
 
         .hidden { display: none; }
@@ -196,15 +259,21 @@
     <h2>HP POD Search</h2>
 
     <div class="search-card">
-        <label class="form-label">ทะเบียนรถ</label>
+        <label class="form-label">
+            <span>ทะเบียนรถ</span>
+            <span class="label-action" onclick="clearPlate()">ล้างค่า</span>
+        </label>
         <div class="plate-row">
-            <input id="license_plate1" placeholder="เช่น กก">
-            <input id="license_plate2" placeholder="1234">
-            <input id="license_plate3" placeholder="กรุงเทพฯ">
+            <input id="license_plate1" placeholder="หมวด">
+            <input id="license_plate2" placeholder="เลขทะเบียน">
+            <input id="license_plate3" placeholder="จังหวัด">
         </div>
 
-        <label class="form-label">วันที่ปฏิบัติงาน (Assignment Date)</label>
-        <input id="assignment_date" type="date">
+        <label class="form-label">วันที่ปฏิบัติงาน</label>
+        <div class="date-row">
+            <input id="assignment_date" type="date">
+            <button class="today-btn" onclick="setTodayDate()">วันนี้</button>
+        </div>
 
         <button class="search-btn" onclick="searchOrders()">
             🔍 ค้นหางาน
@@ -222,12 +291,29 @@ const client = window.supabase.createClient(
     window.APP_CONFIG.SUPABASE_KEY
 );
 
+let cachedOrders = [];
+let currentLp1 = "", currentLp2 = "", currentLp3 = "", currentAssignDate = "";
+let html5QrCode = null;
+
 function formatDateToYYYYMMDD(dateValue) {
     if (!dateValue) return "";
     return dateValue.replaceAll("-", "");
 }
 
-// ตั้งค่าวันที่ปัจจุบันเป็นค่าเริ่มต้นหากยังไม่มีค่า
+function setTodayDate() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById("assignment_date").value = today;
+}
+
+function clearPlate() {
+    document.getElementById("license_plate1").value = "";
+    document.getElementById("license_plate2").value = "";
+    document.getElementById("license_plate3").value = "";
+    localStorage.removeItem("hp_lp1");
+    localStorage.removeItem("hp_lp2");
+    localStorage.removeItem("hp_lp3");
+}
+
 window.onload = function () {
     const today = new Date().toISOString().split('T')[0];
     
@@ -241,7 +327,7 @@ window.onload = function () {
     if (lp2) document.getElementById("license_plate2").value = lp2;
     if (lp3) document.getElementById("license_plate3").value = lp3;
 
-    if (date) {
+    if (date && date.length === 8) {
         const displayDate = date.substring(0,4) + "-" + date.substring(4,6) + "-" + date.substring(6,8);
         document.getElementById("assignment_date").value = displayDate;
     } else {
@@ -266,13 +352,13 @@ function toggleCompleted() {
     }
 }
 
-function renderOrders(orders, lp1, lp2, lp3, assignDate) {
+function renderOrders(orders) {
     if (orders.length === 0) {
-        return `<div class="card" style="text-align:center; color:#777;">ไม่มีรายการ</div>`;
+        return `<div style="text-align:center; color:#777; padding: 10px; font-size:12px;">ไม่พบรายการที่ค้นหา</div>`;
     }
 
     return orders.map(row => {
-        let statusText = row.status_code || "รอดำเนินการ";
+        let statusText = "รอดำเนินการ";
         let statusClass = "status-pending";
 
         if (row.status_code === "D1") {
@@ -284,16 +370,13 @@ function renderOrders(orders, lp1, lp2, lp3, assignDate) {
         }
 
         return `
-        <div class="card">
-            <div class="order-item-header">
+        <div class="order-row-compact">
+            <div class="order-info">
                 <span class="order-number">${row.order_number}</span>
-                <span class="status-badge ${statusClass}">${statusText}</span>
+                <span class="status-text ${statusClass}">${statusText}</span>
             </div>
-            <div style="font-size: 12px; color: #666; margin-bottom: 6px;">
-                วันที่: ${row.assignment_date}
-            </div>
-            <button class="order-btn" onclick="openOrder('${row.id}', '${encodeURIComponent(lp1)}', '${encodeURIComponent(lp2)}', '${encodeURIComponent(lp3)}', '${assignDate}')">
-                📂 เปิด POD
+            <button class="action-btn" onclick="openOrder('${row.id}')">
+                เปิด POD
             </button>
         </div>
         `;
@@ -301,73 +384,90 @@ function renderOrders(orders, lp1, lp2, lp3, assignDate) {
 }
 
 async function searchOrders() {
-    const lp1 = document.getElementById("license_plate1").value.trim();
-    const lp2 = document.getElementById("license_plate2").value.trim();
-    const lp3 = document.getElementById("license_plate3").value.trim();
+    currentLp1 = document.getElementById("license_plate1").value.trim();
+    currentLp2 = document.getElementById("license_plate2").value.trim();
+    currentLp3 = document.getElementById("license_plate3").value.trim();
     const rawDate = document.getElementById("assignment_date").value;
-    const assignDate = formatDateToYYYYMMDD(rawDate);
+    currentAssignDate = formatDateToYYYYMMDD(rawDate);
 
-    if (!lp1 || !lp2 || !lp3 || !assignDate) {
+    if (!currentLp1 || !currentLp2 || !currentLp3 || !currentAssignDate) {
         alert("กรุณากรอกข้อมูลทะเบียนรถและวันที่ให้ครบถ้วน");
         return;
     }
 
-    // บันทึกค่าลง LocalStorage เพื่อให้ครั้งหน้าไม่ต้องกรอกใหม่
-    localStorage.setItem("hp_lp1", lp1);
-    localStorage.setItem("hp_lp2", lp2);
-    localStorage.setItem("hp_lp3", lp3);
-    localStorage.setItem("hp_date", assignDate);
+    localStorage.setItem("hp_lp1", currentLp1);
+    localStorage.setItem("hp_lp2", currentLp2);
+    localStorage.setItem("hp_lp3", currentLp3);
+    localStorage.setItem("hp_date", currentAssignDate);
 
-    document.getElementById("result").innerHTML = `<div class="card" style="text-align:center;">กำลังค้นหา...</div>`;
+    document.getElementById("result").innerHTML = `<div style="text-align:center; padding:10px; font-size:12px;">กำลังค้นหา...</div>`;
 
     const result = await client
         .from("TBL_KN_HP_POD_SHIPREF")
         .select("id,order_number,status_code,assignment_date")
-        .eq("license_plate1", lp1)
-        .eq("license_plate2", lp2)
-        .eq("license_plate3", lp3)
-        .eq("assignment_date", assignDate)
+        .eq("license_plate1", currentLp1)
+        .eq("license_plate2", currentLp2)
+        .eq("license_plate3", currentLp3)
+        .eq("assignment_date", currentAssignDate)
         .order("order_number", { ascending: true });
 
     if (result.error) {
-        document.getElementById("result").innerHTML = `<div class="card" style="color:red;">${result.error.message}</div>`;
+        document.getElementById("result").innerHTML = `<div style="color:red; text-align:center; font-size:12px;">${result.error.message}</div>`;
         return;
     }
 
     if (!result.data || result.data.length === 0) {
-        document.getElementById("result").innerHTML = `<div class="card" style="text-align:center; color:#777;">ไม่พบข้อมูลงานสำหรับทะเบียนนี้ในวันที่เลือก</div>`;
+        document.getElementById("result").innerHTML = `<div style="text-align:center; color:#777; padding:10px; font-size:12px;">ไม่พบข้อมูลงานสำหรับทะเบียนนี้ในวันที่เลือก</div>`;
         return;
     }
 
-    const pendingOrders = result.data.filter(row => row.status_code === null || row.status_code === "");
-    const completedOrders = result.data.filter(row => row.status_code === "D1" || row.status_code === "AP");
+    cachedOrders = result.data;
+    displayResults(cachedOrders);
+}
+
+function displayResults(data) {
+    const pendingOrders = data.filter(row => row.status_code === null || row.status_code === "");
+    const completedOrders = data.filter(row => row.status_code === "D1" || row.status_code === "AP");
 
     let html = `
-    <div class="card summary-card">
-        พบทั้งหมด <b>${result.data.length}</b> งาน | 
-        <span style="color:#ff9800;">รอส่ง: ${pendingOrders.length}</span> | 
-        <span style="color:#28a745;">เสร็จแล้ว: ${completedOrders.length}</span>
+    <div class="summary-bar">
+        <span>ทั้งหมด: ${cachedOrders.length} งาน</span>
+        <span style="color:#ff9800;">รอส่ง: ${cachedOrders.filter(r => !r.status_code).length}</span>
+        <span style="color:#28a745;">เสร็จ: ${cachedOrders.filter(r => r.status_code).length}</span>
+    </div>
+
+    <!-- พื้นที่แสดงกล้องสแกน (ซ่อนไว้ก่อนจนกว่าจะกดปุ่ม) -->
+    <div id="reader"></div>
+
+    <!-- ช่องกรองด่วน + ปุ่มสแกน Barcode -->
+    <div class="filter-row">
+        <input type="text" id="quickFilter" class="quick-filter-input" placeholder="🔍 พิมพ์หรือสแกน Barcode..." oninput="filterOrders()">
+        <button class="scan-barcode-btn" onclick="startScanner()">📷 สแกน</button>
     </div>
 
     <div>
         <div class="column-header pending-header">
-            📌 งานที่ต้องจัดส่ง (${pendingOrders.length})
+            📌 งานที่ต้องจัดส่ง (<span id="pendingCount">${pendingOrders.length}</span>)
         </div>
-        ${renderOrders(pendingOrders, lp1, lp2, lp3, assignDate)}
+        <div id="pendingList" style="margin-top: 4px;">
+            ${renderOrders(pendingOrders)}
+        </div>
     </div>
     `;
 
     if (completedOrders.length > 0) {
         html += `
-        <div class="completed-section">
+        <div style="margin-top: 6px;">
             <button id="completed-btn" class="collapse-btn" onclick="toggleCompleted()">
-                ▶ แสดงรายการส่งสำเร็จแล้ว (${completedOrders.length})
+                ▶ แสดงรายการส่งสำเร็จแล้ว (<span id="completedCount">${completedOrders.length}</span>)
             </button>
-            <div id="completed-content" class="hidden">
+            <div id="completed-content" class="hidden" style="margin-top: 4px;">
                 <div class="column-header completed-header">
-                    ✅ รายการที่ส่งสำเร็จแล้ว (${completedOrders.length})
+                    ✅ รายการที่ส่งสำเร็จแล้ว
                 </div>
-                ${renderOrders(completedOrders, lp1, lp2, lp3, assignDate)}
+                <div id="completedList" style="margin-top: 4px;">
+                    ${renderOrders(completedOrders)}
+                </div>
             </div>
         </div>
         `;
@@ -376,8 +476,62 @@ async function searchOrders() {
     document.getElementById("result").innerHTML = html;
 }
 
-function openOrder(id, lp1, lp2, lp3, assignDate) {
-    window.location.href = `index.html?id=${id}&lp1=${lp1}&lp2=${lp2}&lp3=${lp3}&date=${assignDate}`;
+// ฟังก์ชันเปิดกล้องสแกน Barcode/QR Code
+function startScanner() {
+    const readerDiv = document.getElementById("reader");
+    readerDiv.style.display = "block";
+
+    if (!html5QrCode) {
+        html5QrCode = new Html5Qrcode("reader");
+    }
+
+    html5QrCode.start(
+        { facingMode: "environment" }, // ใช้กล้องหลัง
+        {
+            fps: 10,
+            qrbox: { width: 250, height: 100 }
+        },
+        (decodedText, decodedResult) => {
+            // เมื่อสแกนสำเร็จ
+            document.getElementById("quickFilter").value = decodedText;
+            filterOrders();
+            
+            // ปิดกล้องหลังสแกนสำเร็จ
+            html5QrCode.stop().then(() => {
+                readerDiv.style.display = "none";
+            }).catch(err => console.error(err));
+        },
+        (errorMessage) => {
+            // กำลังสแกนหา... (ปล่อยว่างไว้เพื่อไม่ให้ขึ้น Error log รบกวน)
+        }
+    ).catch(err => {
+        alert("ไม่สามารถเปิดกล้องได้ กรุณาตรวจสอบสิทธิ์การใช้งานกล้อง: " + err);
+        readerDiv.style.display = "none";
+    });
+}
+
+function filterOrders() {
+    const keyword = document.getElementById("quickFilter").value.toLowerCase().trim();
+    
+    const filtered = cachedOrders.filter(row => 
+        row.order_number.toLowerCase().includes(keyword)
+    );
+
+    const pendingOrders = filtered.filter(row => row.status_code === null || row.status_code === "");
+    const completedOrders = filtered.filter(row => row.status_code === "D1" || row.status_code === "AP");
+
+    document.getElementById("pendingList").innerHTML = renderOrders(pendingOrders);
+    document.getElementById("pendingCount").innerText = pendingOrders.length;
+    
+    const compList = document.getElementById("completedList");
+    if (compList) {
+        compList.innerHTML = renderOrders(completedOrders);
+        document.getElementById("completedCount").innerText = completedOrders.length;
+    }
+}
+
+function openOrder(id) {
+    window.location.href = `index.html?id=${id}&lp1=${encodeURIComponent(currentLp1)}&lp2=${encodeURIComponent(currentLp2)}&lp3=${encodeURIComponent(currentLp3)}&date=${currentAssignDate}`;
 }
 
 </script>
