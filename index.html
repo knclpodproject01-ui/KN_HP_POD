@@ -7,7 +7,13 @@
     <title>HP POD Upload</title>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
     <script src="config.js"></script>
+    <script src="https://unpkg.com/pdf-lib@1.4.0/dist/pdf-lib.min.js"></script>
+
     <style>
         * {
             box-sizing: border-box;
@@ -30,31 +36,24 @@
             color: #1a1a1a;
         }
 
-        h3 {
-            font-size: 14px;
-            margin: 8px 0 4px 0;
-            color: #444;
-        }
-
         .card {
             border: 1px solid #e0e0e0;
             padding: 10px;
             border-radius: 8px;
             background: white;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
             margin-bottom: 8px;
             font-size: 13px;
             line-height: 1.4;
         }
 
-        /* รวมการ์ดถ่ายรูปทั้งหมดไว้ในการ์ดเดียว เพื่อประหยัดพื้นที่แนวตั้ง */
         .photo-section-card {
             border: 1px solid #e0e0e0;
             border-radius: 8px;
             padding: 10px;
             margin-bottom: 8px;
             background: white;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
         }
 
         .section-title {
@@ -64,7 +63,6 @@
             color: #222;
         }
 
-        /* จัดเรียงรายการถ่ายรูปให้เป็นแถวแนวนอนที่กะทัดรัด */
         .photo-row-compact {
             display: flex;
             align-items: center;
@@ -84,7 +82,7 @@
         .photo-label {
             font-size: 13px;
             font-weight: 600;
-            width: 100px;
+            width: 110px;
             color: #444;
         }
 
@@ -140,36 +138,77 @@
             background: #004999;
         }
 
-        /* Status & Reason Group */
-        .status-group, .reason-group {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .status-btn, .reason-btn {
+        /* Order Filter Input */
+        .order-filter-input {
             width: 100%;
-            min-height: 40px;
-            padding: 8px 10px;
-            background: white;
-            color: #333;
+            padding: 6px 10px;
             border: 1px solid #ccc;
             border-radius: 6px;
             font-size: 13px;
-            text-align: left;
+            margin-bottom: 8px;
+            outline: none;
+        }
+        .order-filter-input:focus {
+            border-color: #0066cc;
+        }
+
+        /* Order List Item Style */
+        .order-item-card {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 6px 8px;
+            margin-bottom: 4px;
+        }
+
+        .order-row-main {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-weight: bold;
+            font-size: 12px;
+            color: #0066cc;
+        }
+
+        .order-left-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+
+        .order-row-main input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: #d97706;
+            cursor: pointer;
+        }
+
+        /* Reason Group Inline Buttons */
+        .reason-group-inline {
+            display: none;
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px dashed #eee;
+            gap: 4px;
+            flex-direction: row; /* เรียงแถวเดียวกัน */
+        }
+
+        .reason-btn {
+            flex: 1;
+            min-height: 28px;
+            padding: 4px 6px;
+            background: white;
+            color: #333;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 11px;
+            text-align: center;
             cursor: pointer;
             display: flex;
             align-items: center;
-            justify-content: flex-start;
-            box-sizing: border-box;
-            word-break: break-word;
-        }
-
-        .status-btn.active {
-            background: #28a745;
-            color: white;
-            border-color: #28a745;
-            font-weight: bold;
+            justify-content: center;
+            white-space: nowrap;
         }
 
         .reason-btn.reason-active {
@@ -181,18 +220,55 @@
 
         .badge-code {
             display: inline-block;
-            padding: 2px 5px;
-            background: rgba(0,0,0,0.08);
-            border-radius: 4px;
+            padding: 1px 3px;
+            background: rgba(0, 0, 0, 0.08);
+            border-radius: 3px;
             font-weight: bold;
-            margin-right: 6px;
-            font-size: 12px;
+            margin-right: 3px;
+            font-size: 10px;
         }
 
-        .status-btn.active .badge-code,
         .reason-btn.reason-active .badge-code {
-            background: rgba(255,255,255,0.25);
+            background: rgba(255, 255, 255, 0.25);
             color: white;
+        }
+
+        /* Signature Pad Styles */
+        .sig-container {
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            background: #fff;
+            position: relative;
+            touch-action: none;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+
+        canvas#sigCanvas {
+            width: 100%;
+            height: 180px;
+            display: block;
+            background: #fafafa;
+            cursor: crosshair;
+        }
+
+        .sig-actions {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px;
+            background: #f1f3f5;
+            border-top: 1px solid #ddd;
+        }
+
+        .clear-sig-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 10px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
         }
 
         .submit-btn {
@@ -213,19 +289,27 @@
             background: #1e7e34;
         }
 
-        #reasonSelected {
-            margin-top: 4px;
-            font-size: 13px;
-            color: #d97706;
-            font-weight: bold;
-        }
-
         #msg {
             margin-top: 8px;
             text-align: center;
             font-size: 13px;
             font-weight: bold;
             color: #0066cc;
+        }
+
+        #orderListContainer {
+            max-height: 250px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        #orderListContainer::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #orderListContainer::-webkit-scrollbar-thumb {
+            background-color: #ccc;
+            border-radius: 3px;
         }
     </style>
 </head>
@@ -238,11 +322,19 @@
         <div id="orderInfo">Loading...</div>
     </div>
 
-    <!-- Section: Photos (รวมไว้ในการ์ดเดียวกันแบบ Compact) -->
-    <div class="photo-section-card">
-        <div class="section-title">📷 บันทึกภาพถ่าย (3 รูป)</div>
+    <!-- Section: Order Numbers List with Checkbox and Filter -->
+    <div class="card">
+        <div class="section-title">📦 รายการ Order ใน Trip / ปลายทางนี้</div>
+        <input type="text" id="orderFilter" class="order-filter-input" placeholder="🔍 กรองค้นหาเลขออร์เดอร์..." oninput="filterOrderList()">
+        <div style="font-size: 11px; color: #666; margin-bottom: 6px;">
+            * ติ๊กถูกเฉพาะ Order ที่<b>จัดส่งไม่สำเร็จ</b> (ค่าเริ่มต้นระบบจะบันทึกเป็น D1 : สำเร็จ ทั้งหมด)
+        </div>
+        <div id="orderListContainer">กำลังโหลดรายการ Order...</div>
+    </div>
 
-        <!-- รูปที่ 1 -->
+    <!-- Section: Photos -->
+    <div class="photo-section-card">
+        <div class="section-title">📷 บันทึกภาพถ่าย (ใช้ร่วมกันทั้ง Trip)</div>
         <div class="photo-row-compact">
             <span class="photo-label">1. สถานที่จัดส่ง</span>
             <div class="preview-box">
@@ -253,7 +345,6 @@
         </div>
         <input type="file" id="img1" class="file-input" accept="image/*" capture="environment">
 
-        <!-- รูปที่ 2 -->
         <div class="photo-row-compact">
             <span class="photo-label">2. ภาพสินค้า</span>
             <div class="preview-box">
@@ -263,45 +354,21 @@
             <label for="img2" class="camera-btn">ถ่ายรูปที่ 2</label>
         </div>
         <input type="file" id="img2" class="file-input" accept="image/*" capture="environment">
+    </div>
 
-        <!-- รูปที่ 3 -->
-        <div class="photo-row-compact">
-            <span class="photo-label">3. ภาพเอกสาร</span>
-            <div class="preview-box">
-                <div id="holder3" class="placeholder">รอรูป</div>
-                <img id="preview3" class="preview">
+    <!-- Section: Customer Signature -->
+    <div class="photo-section-card">
+        <div class="section-title">✍️ ลายเซ็นลูกค้า (รับสินค้า)</div>
+        <div style="font-size: 11px; color: #666; margin-bottom: 6px;">
+            เซ็นชื่อลงในกรอบด้านล่าง ระบบจะนำไปทับบนเอกสาร PDF ทุกหน้าอัตโนมัติ
+        </div>
+        <div class="sig-container">
+            <canvas id="sigCanvas"></canvas>
+            <div class="sig-actions">
+                <span style="font-size: 11px; color: #555; align-self: center;">พื้นที่เซ็นชื่อ</span>
+                <button type="button" class="clear-sig-btn" onclick="clearSignature()">ล้างลายเซ็น</button>
             </div>
-            <label for="img3" class="camera-btn">ถ่ายรูปที่ 3</label>
         </div>
-        <input type="file" id="img3" class="file-input" accept="image/*" capture="environment">
-    </div>
-
-    <!-- Section: Status Code -->
-    <h3>เลือกสถานะ (Status Code)</h3>
-    <div class="status-group">
-        <button class="status-btn" id="btnD1" onclick="setStatus('D1')">
-            <span class="badge-code">D1</span> ขนถ่ายสินค้า ณ จุดส่งมอบเสร็จสิ้น
-        </button>
-        <button class="status-btn" id="btnAP" onclick="setStatus('AP')">
-            <span class="badge-code">AP</span> การจัดส่งไม่สำเร็จ
-        </button>
-    </div>
-
-    <!-- Section: Reason Code -->
-    <div id="reasonArea" style="display:none">
-        <h3>ระบุเหตุผล (Reason Code)</h3>
-        <div class="reason-group">
-            <button class="reason-btn" id="btnAK" onclick="setReason('AK')">
-                <span class="badge-code">AK</span> สินค้าชำรุด
-            </button>
-            <button class="reason-btn" id="btnBS" onclick="setReason('BS')">
-                <span class="badge-code">BS</span> ลูกค้าปฏิเสธรับสินค้า
-            </button>
-            <button class="reason-btn" id="btnA1" onclick="setReason('A1')">
-                <span class="badge-code">A1</span> พ้นช่วงเวลาที่กำหนด
-            </button>
-        </div>
-        <div id="reasonSelected"></div>
     </div>
 
     <button class="submit-btn" onclick="savePOD()">UPLOAD POD</button>
@@ -314,95 +381,206 @@
         );
 
         const urlParams = new URLSearchParams(window.location.search);
-        const orderId = urlParams.get("id");
-        const licensePlate1 = urlParams.get("lp1");
-        const licensePlate2 = urlParams.get("lp2");
-        const licensePlate3 = urlParams.get("lp3");
-        const assignmentDate = urlParams.get("date");
+        const tripNumber = urlParams.get("trip_number");
+        const destination = urlParams.get("destination");
 
-        if (!orderId) {
-            alert("Missing Order ID");
+        if (!tripNumber || !destination) {
+            alert("Missing Trip Number or Destination");
             window.location.href = "search.html";
         }
 
-        let orderData = null;
-        let statusCode = null;
-        let reasonCode = null;
-        let latitude = 0;
-        let longitude = 0;
+        let ordersData = [];
+        let pdfFileUrl = "";
         let image1Blob = null;
         let image2Blob = null;
-        let image3Blob = null;
 
-        navigator.geolocation.getCurrentPosition(
-            function (position) {
-                latitude = position.coords.latitude;
-                longitude = position.coords.longitude;
-            },
-            function (error) {
-                console.log(error.message);
-                latitude = 0;
-                longitude = 0;
-            },
-            {
-                enableHighAccuracy: true,
-                timeout: 10000,
-                maximumAge: 0
-            }
-        );
+        const canvas = document.getElementById("sigCanvas");
+        const ctx = canvas.getContext("2d");
+        let drawing = false;
 
-        async function loadOrder() {
-            const result = await client
+        function resizeCanvas() {
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+            canvas.width = canvas.offsetWidth * ratio;
+            canvas.height = canvas.offsetHeight * ratio;
+            ctx.scale(ratio, ratio);
+            ctx.strokeStyle = "#0000FF"; // <--- เปลี่ยนเป็นสีน้ำเงิน (หรือใช้ #003366 สำหรับน้ำเงินเข้มสวยๆ)#0000FF
+            ctx.lineWidth = 2.5;
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+        }
+        window.addEventListener("resize", resizeCanvas);
+        resizeCanvas();
+
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        canvas.addEventListener("mousedown", (e) => { drawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); });
+        canvas.addEventListener("mousemove", (e) => { if (!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); });
+        canvas.addEventListener("mouseup", () => drawing = false);
+        canvas.addEventListener("mouseleave", () => drawing = false);
+
+        canvas.addEventListener("touchstart", (e) => { drawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); e.preventDefault(); });
+        canvas.addEventListener("touchmove", (e) => { if (!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); e.preventDefault(); });
+        canvas.addEventListener("touchend", () => drawing = false);
+
+        function clearSignature() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function isCanvasBlank() {
+            const blank = document.createElement('canvas');
+            blank.width = canvas.width;
+            blank.height = canvas.height;
+            return canvas.toDataURL() === blank.toDataURL();
+        }
+
+        function getCurrentPositionAsync() {
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    reject(new Error("Browser ของคุณไม่รองรับการใช้งาน Geolocation"));
+                    return;
+                }
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        resolve({
+                            latitude: position.coords.latitude,
+                            longitude: position.coords.longitude
+                        });
+                    },
+                    (error) => {
+                        reject(error);
+                    },
+                    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+                );
+            });
+        }
+
+        async function loadData() {
+            const resultOrders = await client
                 .from("TBL_KN_HP_POD_SHIPREF")
-                .select("*")
-                .eq("id", orderId)
-                .single();
+                .select("id, trip_number, order_number, destination, destination_remark")
+                .eq("trip_number", tripNumber)
+                .eq("destination", destination);
 
-            if (result.error) {
-                alert("Order Not Found");
+            if (resultOrders.error || !resultOrders.data || resultOrders.data.length === 0) {
+                alert("ไม่พบข้อมูล Order สำหรับ Trip และ Destination นี้");
+                window.location.href = `search.html?trip_number=${encodeURIComponent(tripNumber)}`;
                 return;
             }
 
-            orderData = result.data;
+            ordersData = resultOrders.data;
+
             document.getElementById("orderInfo").innerHTML = `
-                <div style="font-size: 15px; font-weight: bold; margin-bottom: 2px;">Order: ${orderData.order_number}</div>
-                <div><b>Assignment Date:</b> ${orderData.assignment_date || '-'} | <b>Status:</b> ${orderData.status_code || "-"}</div>
+                <div style="font-size: 14px; font-weight: bold; margin-bottom: 2px;">Trip: ${tripNumber}</div>
+                <div><b>ปลายทาง:</b> ${destination} | <b>จำนวน Order:</b> ${ordersData.length} รายการ</div>
             `;
-        }
 
-        loadOrder();
+            renderOrderList(ordersData);
 
-        function setStatus(value) {
-            statusCode = value;
-            document.getElementById("btnD1").classList.remove("active");
-            document.getElementById("btnAP").classList.remove("active");
+            const resultPdf = await client
+                .from("TBL_KN_HP_POD_SHIPREF")
+                .select("pdf_file")
+                .eq("trip_number", tripNumber)
+                .eq("destination", destination)
+                .not("pdf_file", "is", null);
 
-            if (value === "D1") {
-                document.getElementById("btnD1").classList.add("active");
-                reasonCode = "NS";
-                document.getElementById("reasonArea").style.display = "none";
-            }
-
-            if (value === "AP") {
-                document.getElementById("btnAP").classList.add("active");
-                reasonCode = null;
-                document.getElementById("reasonArea").style.display = "block";
-                
-                document.querySelectorAll('.reason-btn').forEach(btn => btn.classList.remove('reason-active'));
-                document.getElementById("reasonSelected").innerHTML = "";
+            if (!resultPdf.error && resultPdf.data && resultPdf.data.length > 0) {
+                const uniquePdfs = [...new Set(resultPdf.data.map(item => item.pdf_file))];
+                if (uniquePdfs.length > 0) {
+                    pdfFileUrl = uniquePdfs[0];
+                }
             }
         }
 
-        function setReason(value) {
-            reasonCode = value;
-            document.querySelectorAll('.reason-btn').forEach(btn => btn.classList.remove('reason-active'));
+        loadData();
+
+        function filterOrderList() {
+            const keyword = document.getElementById("orderFilter").value.toLowerCase().trim();
+            const filtered = ordersData.filter(row => row.order_number.toLowerCase().includes(keyword));
+            renderOrderList(filtered);
+        }
+
+        function renderOrderList(dataToRender) {
+            const container = document.getElementById("orderListContainer");
             
-            const selectedBtn = document.getElementById("btn" + value);
-            if (selectedBtn) {
-                selectedBtn.classList.add("reason-active");
+            if (dataToRender.length === 0) {
+                container.innerHTML = `<div style="text-align: center; color: #888; font-size: 12px; padding: 10px;">ไม่พบเลขออร์เดอร์ที่ค้นหา</div>`;
+                return;
             }
 
-            document.getElementById("reasonSelected").innerHTML = "<b>เลือกเหตุผล:</b> " + value;
+            container.innerHTML = dataToRender.map((row) => {
+                // ค้นหา index จริงจาก ordersData เพื่อให้เวลาบันทึกและติ๊กถูกต้องตรงกัน
+                const index = ordersData.findIndex(item => item.id === row.id);
+                const isChecked = document.getElementById(`chk_${index}`) ? document.getElementById(`chk_${index}`).checked : false;
+                const activeReason = ordersData[index].selectedReason;
+
+                return `
+                    <div class="order-item-card" id="order_card_${index}">
+                        <div class="order-row-main">
+                            <div class="order-left-group" onclick="toggleCheckbox(${index})">
+                                <input type="checkbox" id="chk_${index}" ${isChecked ? 'checked' : ''} onchange="toggleReasonArea(${index})">
+                                <span>📦 ${row.order_number}</span>
+                            </div>
+                            <span style="font-size: 11px; font-weight: normal; color: #555;" onclick="toggleCheckbox(${index})">ส่งไม่สำเร็จ</span>
+                        </div>
+                        <div class="reason-group-inline" id="reason_area_${index}" style="display: ${isChecked ? 'flex' : 'none'};">
+                            <button type="button" class="reason-btn ${activeReason === 'AK' ? 'reason-active' : ''}" id="btn_${index}_AK" onclick="selectReason(${index}, 'AK')">
+                                <span class="badge-code">AK</span> สินค้าชำรุด
+                            </button>
+                            <button type="button" class="reason-btn ${activeReason === 'BS' ? 'reason-active' : ''}" id="btn_${index}_BS" onclick="selectReason(${index}, 'BS')">
+                                <span class="badge-code">BS</span> ปฏิเสธรับ
+                            </button>
+                            <button type="button" class="reason-btn ${activeReason === 'A1' ? 'reason-active' : ''}" id="btn_${index}_A1" onclick="selectReason(${index}, 'A1')">
+                                <span class="badge-code">A1</span> เกินเวลา
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join("");
+        }
+
+        function toggleCheckbox(index) {
+            const chk = document.getElementById(`chk_${index}`);
+            if (chk) {
+                chk.checked = !chk.checked;
+                toggleReasonArea(index);
+            }
+        }
+
+        function toggleReasonArea(index) {
+            const isChecked = document.getElementById(`chk_${index}`).checked;
+            const area = document.getElementById(`reason_area_${index}`);
+            if (area) {
+                area.style.display = isChecked ? "flex" : "none";
+            }
+            if (!isChecked) {
+                ordersData[index].selectedReason = null;
+                ['AK', 'BS', 'A1'].forEach(code => {
+                    const btn = document.getElementById(`btn_${index}_${code}`);
+                    if (btn) btn.classList.remove("reason-active");
+                });
+            } else {
+                if (!ordersData[index].selectedReason) {
+                    selectReason(index, 'AK');
+                }
+            }
+        }
+
+        function selectReason(index, reasonCode) {
+            ordersData[index].selectedReason = reasonCode;
+            ['AK', 'BS', 'A1'].forEach(code => {
+                const btn = document.getElementById(`btn_${index}_${code}`);
+                if (btn) btn.classList.remove("reason-active");
+            });
+            const activeBtn = document.getElementById(`btn_${index}_${reasonCode}`);
+            if (activeBtn) activeBtn.classList.add("reason-active");
         }
 
         function resizeImage(file, callback) {
@@ -411,134 +589,196 @@
                 let width = img.width;
                 let height = img.height;
                 const MAX = 1280;
-
                 if (width > height) {
-                    if (width > MAX) {
-                        height = Math.round((height * MAX) / width);
-                        width = MAX;
-                    }
+                    if (width > MAX) { height = Math.round((height * MAX) / width); width = MAX; }
                 } else {
-                    if (height > MAX) {
-                        width = Math.round((width * MAX) / height);
-                        height = MAX;
-                    }
+                    if (height > MAX) { width = Math.round((width * MAX) / height); height = MAX; }
                 }
-
-                const canvas = document.createElement("canvas");
-                canvas.width = width;
-                canvas.height = height;
-
-                const ctx = canvas.getContext("2d");
-                ctx.drawImage(img, 0, 0, width, height);
-
-                canvas.toBlob(
-                    function (blob) {
-                        callback(blob);
-                    },
-                    "image/jpeg",
-                    0.8
-                );
+                const canvasEl = document.createElement("canvas");
+                canvasEl.width = width;
+                canvasEl.height = height;
+                const ctxEl = canvasEl.getContext("2d");
+                ctxEl.drawImage(img, 0, 0, width, height);
+                canvasEl.toBlob(blob => callback(blob), "image/jpeg", 0.8);
             };
-
             img.src = URL.createObjectURL(file);
         }
 
-        function setupImageHandler(inputId, holderId, previewId, setBlobCallback) {
-            document.getElementById(inputId).addEventListener("change", function (e) {
-                const file = e.target.files[0];
-                if (!file) return;
-
-                resizeImage(file, function (blob) {
-                    setBlobCallback(blob);
-                    document.getElementById(holderId).style.display = "none";
-                    const imgPreview = document.getElementById(previewId);
-                    imgPreview.src = URL.createObjectURL(blob);
-                    imgPreview.style.display = "block";
-                });
+        document.getElementById("img1").addEventListener("change", function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            resizeImage(file, blob => {
+                image1Blob = blob;
+                document.getElementById("holder1").style.display = "none";
+                const p = document.getElementById("preview1");
+                p.src = URL.createObjectURL(blob);
+                p.style.display = "block";
             });
-        }
+        });
 
-        setupImageHandler("img1", "holder1", "preview1", blob => image1Blob = blob);
-        setupImageHandler("img2", "holder2", "preview2", blob => image2Blob = blob);
-        setupImageHandler("img3", "holder3", "preview3", blob => image3Blob = blob);
+        document.getElementById("img2").addEventListener("change", function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            resizeImage(file, blob => {
+                image2Blob = blob;
+                document.getElementById("holder2").style.display = "none";
+                const p = document.getElementById("preview2");
+                p.src = URL.createObjectURL(blob);
+                p.style.display = "block";
+            });
+        });
 
-        async function uploadFile(blob, fileName) {
+        async function uploadFileToStorage(blob, fileName, contentType) {
+            const safeFileName = fileName
+                .replace(/\s+/g, '_')
+                .replace(/[^\w.-]/g, (match) => '_');
+
             const result = await client.storage
                 .from("BUCKET_HP_POD_IMAGES")
-                .upload(fileName, blob, {
-                    contentType: "image/jpeg",
-                    upsert: false
-                });
+                .upload(safeFileName, blob, { contentType: contentType, upsert: true });
 
-            if (result.error) {
-                throw new Error(result.error.message);
-            }
+            if (result.error) throw new Error(result.error.message);
 
             return client.storage
                 .from("BUCKET_HP_POD_IMAGES")
-                .getPublicUrl(fileName).data.publicUrl;
+                .getPublicUrl(safeFileName).data.publicUrl;
+        }
+
+        async function generateSignedPdfBlob() {
+            if (!pdfFileUrl) {
+                throw new Error("ไม่พบ URL ของไฟล์ PDF ต้นฉบับสำหรับทำ Overlay ลายเซ็น");
+            }
+
+            try {
+                const existingPdfBytes = await fetch(pdfFileUrl).then(res => {
+                    if (!res.ok) throw new Error("ไม่สามารถดาวน์โหลดไฟล์ PDF ต้นฉบับได้");
+                    return res.arrayBuffer();
+                });
+
+                const pdfDoc = await PDFLib.PDFDocument.load(existingPdfBytes);
+                const sigDataUrl = canvas.toDataURL("image/png");
+                const sigImageBytes = await fetch(sigDataUrl).then(res => res.arrayBuffer());
+                const embeddedSigImage = await pdfDoc.embedPng(sigImageBytes);
+
+                const sigDims = embeddedSigImage.scale(0.35);
+
+                const pages = pdfDoc.getPages();
+                for (const page of pages) {
+                    const { width, height } = page.getSize();
+                    page.drawImage(embeddedSigImage, {
+                        x: width - sigDims.width - 40,
+                        y: 40,
+                        width: sigDims.width,
+                        height: sigDims.height,
+                    });
+                }
+
+                const pdfBytes = await pdfDoc.save();
+                return new Blob([pdfBytes], { type: 'application/pdf' });
+
+            } catch (err) {
+                console.error("PDF-Lib Overlay Error:", err);
+                throw err;
+            }
         }
 
         async function savePOD() {
             try {
-                if (!statusCode) {
-                    alert("กรุณาเลือก Status");
+                if (!image1Blob || !image2Blob) {
+                    alert("กรุณาถ่ายรูปที่ 1 และรูปที่ 2 ให้ครบถ้วน");
                     return;
                 }
 
-                if (statusCode === "AP" && !reasonCode) {
-                    alert("กรุณาเลือก Reason");
+                if (isCanvasBlank()) {
+                    alert("กรุณาให้ลูกค้าเซ็นชื่อก่อนอัปโหลด");
                     return;
                 }
 
-                if (!image1Blob || !image2Blob || !image3Blob) {
-                    alert("กรุณาถ่ายรูปให้ครบ 3 รูป");
-                    return;
+                for (let i = 0; i < ordersData.length; i++) {
+                    const chkEl = document.getElementById(`chk_${i}`);
+                    const isChecked = chkEl ? chkEl.checked : false;
+                    if (isChecked && !ordersData[i].selectedReason) {
+                        alert(`Order ${ordersData[i].order_number} ที่เลือกจัดส่งไม่สำเร็จ ยังไม่ได้เลือก Reason Code`);
+                        return;
+                    }
                 }
 
-                if (latitude === 0 || longitude === 0) {
-                    alert("ไม่สามารถอ่าน GPS ได้");
-                    return;
+                document.getElementById("msg").innerHTML = "กำลังดึงพิกัด GPS...";
+
+                let latitude = 0;
+                let longitude = 0;
+                try {
+                    const pos = await getCurrentPositionAsync();
+                    latitude = pos.latitude;
+                    longitude = pos.longitude;
+                } catch (gpsErr) {
+                    console.warn("ไม่สามารถดึง GPS ได้:", gpsErr.message);
+                    const bypass = confirm("ไม่สามารถอ่าน GPS ได้ (อาจเกิดจากไม่ได้เปิด Location หรือใช้งานผ่าน HTTP)\nคุณต้องการดำเนินการต่อโดยใช้พิกัด 0,0 หรือไม่?");
+                    if (!bypass) {
+                        document.getElementById("msg").innerHTML = "";
+                        return;
+                    }
                 }
 
-                document.getElementById("msg").innerHTML = "Uploading Images and Saving POD...";
+                document.getElementById("msg").innerHTML = "กำลังประมวลผลและอัปโหลดข้อมูล...";
 
-                const orderNo = orderData.order_number;
                 const timestamp = new Date().toISOString().replace(/[-:TZ.]/g, "").substring(0, 14);
+                const safeTrip = tripNumber.replace(/[^\w]/g, '_');
+                const safeDest = destination.replace(/[^\w]/g, '_').substring(0, 20);
+                const prefix = `${safeTrip}_${safeDest}_${timestamp}`;
 
-                const [image1Url, image2Url, image3Url] = await Promise.all([
-                    uploadFile(image1Blob, `${orderNo}_img1_${timestamp}.jpg`),
-                    uploadFile(image2Blob, `${orderNo}_img2_${timestamp}.jpg`),
-                    uploadFile(image3Blob, `${orderNo}_img3_${timestamp}.jpg`)
+                const [image1Url, image2Url, signatureBlob] = await Promise.all([
+                    uploadFileToStorage(image1Blob, `${prefix}_img1.jpg`, "image/jpeg"),
+                    uploadFileToStorage(image2Blob, `${prefix}_img2.jpg`, "image/jpeg"),
+                    generateSignedPdfBlob()
                 ]);
 
-                const updateResult = await client
-                    .from("TBL_KN_HP_POD_SHIPREF")
-                    .update({
-                        image1_url: image1Url,
-                        image2_url: image2Url,
-                        image3_url: image3Url,
-                        status_code: statusCode,
-                        reason_code: reasonCode,
-                        latitude: String(latitude),
-                        longitude: String(longitude),
-                        upload_timestamp: new Date().toISOString()
-                    })
-                    .eq("id", orderId);
+                const image3Url = await uploadFileToStorage(signatureBlob, `${prefix}_signed.pdf`, "application/pdf");
 
-                if (updateResult.error) {
-                    alert(updateResult.error.message);
-                    return;
+                for (let i = 0; i < ordersData.length; i++) {
+                    const row = ordersData[i];
+                    const chkEl = document.getElementById(`chk_${i}`);
+                    const isChecked = chkEl ? chkEl.checked : false;
+
+                    let statusCode = "D1";
+                    let reasonCode = "NS";
+
+                    if (isChecked) {
+                        statusCode = "AP";
+                        reasonCode = row.selectedReason;
+                    } else {
+                        statusCode = "D1";
+                        reasonCode = "NS";
+                    }
+
+                    const updateResult = await client
+                        .from("TBL_KN_HP_POD_SHIPREF")
+                        .update({
+                            image1_url: image1Url,
+                            image2_url: image2Url,
+                            image3_url: image3Url,
+                            status_code: statusCode,
+                            reason_code: reasonCode,
+                            latitude: String(latitude),
+                            longitude: String(longitude),
+                            upload_timestamp: new Date().toISOString(),
+                            stop_status:'Y'
+                        })
+                        .eq("id", row.id);
+
+                    if (updateResult.error) {
+                        throw new Error(`Error updating order ${row.order_number}: ${updateResult.error.message}`);
+                    }
                 }
 
                 document.getElementById("msg").innerHTML = "Upload Success";
-                alert("Upload Success");
+                alert("บันทึกข้อมูลและอัปโหลด POD สำเร็จ!");
 
-                window.location.href = `search.html?lp1=${encodeURIComponent(licensePlate1)}&lp2=${encodeURIComponent(licensePlate2)}&lp3=${encodeURIComponent(licensePlate3)}&date=${encodeURIComponent(assignmentDate)}`;
+                window.location.href = `search.html?trip_number=${encodeURIComponent(tripNumber)}`;
 
             } catch (err) {
                 console.error(err);
-                    alert(err.message);
+                alert("เกิดข้อผิดพลาด: " + err.message);
                 document.getElementById("msg").innerHTML = "Upload Failed";
             }
         }

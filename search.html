@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="th">
+
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -44,7 +45,7 @@
             font-size: 12px;
             font-weight: bold;
             color: #444;
-            margin-bottom: 2px;
+            margin-bottom: 4px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -57,52 +58,20 @@
             font-weight: normal;
         }
 
-        .plate-row {
+        .trip-row {
             display: flex;
             gap: 4px;
             margin-bottom: 6px;
             width: 100%;
         }
 
-        .plate-row input {
+        .trip-row input {
             width: 100%;
-            min-width: 0; 
-            padding: 8px 4px;
+            padding: 8px;
             font-size: 13px;
             border: 1px solid #ccc;
             border-radius: 4px;
             text-align: center;
-        }
-
-        #license_plate1 { flex: 2; }
-        #license_plate2 { flex: 3.5; }
-        #license_plate3 { flex: 4.5; }
-
-        .date-row {
-            display: flex;
-            gap: 4px;
-            margin-bottom: 6px;
-        }
-
-        input[type="date"] {
-            flex: 1;
-            min-width: 0;
-            padding: 7px 6px;
-            font-size: 13px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            background: white;
-        }
-
-        .today-btn {
-            padding: 0 8px;
-            background: #e9ecef;
-            border: 1px solid #ced4da;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: bold;
-            color: #495057;
-            cursor: pointer;
         }
 
         .search-btn {
@@ -191,23 +160,22 @@
             flex: 1;
         }
 
-        .order-number {
+        .trip-number-text {
             font-size: 13px;
             font-weight: bold;
             color: #0066cc;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
         }
 
-        .status-text {
+        .destination-text {
+            font-size: 12px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .remark-text {
             font-size: 11px;
             color: #666;
         }
-
-        .status-d1 { color: #155724; font-weight: bold; }
-        .status-ap { color: #721c24; font-weight: bold; }
-        .status-pending { color: #b78103; font-weight: bold; }
 
         .action-btn {
             padding: 6px 12px;
@@ -230,311 +198,208 @@
             font-weight: bold;
             margin-top: 6px;
             font-size: 12px;
+            background: #0066cc;
         }
 
-        .pending-header { background: #ff9800; }
-        .completed-header { background: #28a745; }
-
-        .collapse-btn {
-            background: #6c757d;
-            color: white;
-            width: 100%;
-            padding: 6px;
-            border: none;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: bold;
-            cursor: pointer;
-            margin-top: 6px;
+        .hidden {
+            display: none;
         }
-
-        .hidden { display: none; }
     </style>
 </head>
 
 <body>
 
-<div class="container">
+    <div class="container">
 
-    <h2>HP POD Search</h2>
+        <h2>HP POD Search</h2>
 
-    <div class="search-card">
-        <label class="form-label">
-            <span>ทะเบียนรถ</span>
-            <span class="label-action" onclick="clearPlate()">ล้างค่า</span>
-        </label>
-        <div class="plate-row">
-            <input id="license_plate1" placeholder="หมวด">
-            <input id="license_plate2" placeholder="เลขทะเบียน">
-            <input id="license_plate3" placeholder="จังหวัด">
+        <div class="search-card">
+            <label class="form-label">
+                <span>Trip Number</span>
+                <span class="label-action" onclick="clearTrip()">ล้างค่า</span>
+            </label>
+            <div class="trip-row">
+                <input id="trip_number" placeholder="กรอก Trip Number...">
+            </div>
+
+            <button class="search-btn" onclick="searchOrders()">
+                🔍 ค้นหาข้อมูล
+            </button>
         </div>
 
-        <label class="form-label">วันที่ปฏิบัติงาน</label>
-        <div class="date-row">
-            <input id="assignment_date" type="date">
-            <button class="today-btn" onclick="setTodayDate()">วันนี้</button>
-        </div>
+        <div id="result"></div>
 
-        <button class="search-btn" onclick="searchOrders()">
-            🔍 ค้นหางาน
-        </button>
     </div>
 
-    <div id="result"></div>
+    <script>
 
-</div>
+        const client = window.supabase.createClient(
+            window.APP_CONFIG.SUPABASE_URL,
+            window.APP_CONFIG.SUPABASE_KEY
+        );
 
-<script>
+        let cachedOrders = [];
+        let currentTripNumber = "";
+        let html5QrCode = null;
 
-const client = window.supabase.createClient(
-    window.APP_CONFIG.SUPABASE_URL,
-    window.APP_CONFIG.SUPABASE_KEY
-);
-
-let cachedOrders = [];
-let currentLp1 = "", currentLp2 = "", currentLp3 = "", currentAssignDate = "";
-let html5QrCode = null;
-
-function formatDateToYYYYMMDD(dateValue) {
-    if (!dateValue) return "";
-    return dateValue.replaceAll("-", "");
-}
-
-function setTodayDate() {
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById("assignment_date").value = today;
-}
-
-function clearPlate() {
-    document.getElementById("license_plate1").value = "";
-    document.getElementById("license_plate2").value = "";
-    document.getElementById("license_plate3").value = "";
-    localStorage.removeItem("hp_lp1");
-    localStorage.removeItem("hp_lp2");
-    localStorage.removeItem("hp_lp3");
-}
-
-window.onload = function () {
-    const today = new Date().toISOString().split('T')[0];
-    
-    const params = new URLSearchParams(window.location.search);
-    let lp1 = params.get("lp1") || localStorage.getItem("hp_lp1") || "";
-    let lp2 = params.get("lp2") || localStorage.getItem("hp_lp2") || "";
-    let lp3 = params.get("lp3") || localStorage.getItem("hp_lp3") || "";
-    let date = params.get("date") || localStorage.getItem("hp_date") || today.replaceAll("-", "");
-
-    if (lp1) document.getElementById("license_plate1").value = lp1;
-    if (lp2) document.getElementById("license_plate2").value = lp2;
-    if (lp3) document.getElementById("license_plate3").value = lp3;
-
-    if (date && date.length === 8) {
-        const displayDate = date.substring(0,4) + "-" + date.substring(4,6) + "-" + date.substring(6,8);
-        document.getElementById("assignment_date").value = displayDate;
-    } else {
-        document.getElementById("assignment_date").value = today;
-    }
-
-    if (lp1 && lp2 && lp3 && date) {
-        searchOrders();
-    }
-};
-
-function toggleCompleted() {
-    const content = document.getElementById("completed-content");
-    const btn = document.getElementById("completed-btn");
-
-    if (content.classList.contains("hidden")) {
-        content.classList.remove("hidden");
-        btn.innerHTML = "▼ ซ่อนรายการส่งสำเร็จแล้ว";
-    } else {
-        content.classList.add("hidden");
-        btn.innerHTML = "▶ แสดงรายการส่งสำเร็จแล้ว";
-    }
-}
-
-function renderOrders(orders) {
-    if (orders.length === 0) {
-        return `<div style="text-align:center; color:#777; padding: 10px; font-size:12px;">ไม่พบรายการที่ค้นหา</div>`;
-    }
-
-    return orders.map(row => {
-        let statusText = "รอดำเนินการ";
-        let statusClass = "status-pending";
-
-        if (row.status_code === "D1") {
-            statusText = "D1 : สำเร็จ";
-            statusClass = "status-d1";
-        } else if (row.status_code === "AP") {
-            statusText = "AP : ไม่สำเร็จ";
-            statusClass = "status-ap";
+        function clearTrip() {
+            document.getElementById("trip_number").value = "";
+            localStorage.removeItem("hp_trip_number");
         }
 
-        return `
+        window.onload = function () {
+            const params = new URLSearchParams(window.location.search);
+            let trip = params.get("trip_number") || localStorage.getItem("hp_trip_number") || "";
+
+            if (trip) {
+                document.getElementById("trip_number").value = trip;
+                searchOrders();
+            }
+        };
+
+        function renderOrders(orders) {
+            if (orders.length === 0) {
+                return `<div style="text-align:center; color:#777; padding: 10px; font-size:12px;">ไม่พบรายการที่ค้นหา</div>`;
+            }
+
+            return orders.map(row => {
+                return `
         <div class="order-row-compact">
             <div class="order-info">
-                <span class="order-number">${row.order_number}</span>
-                <span class="status-text ${statusClass}">${statusText}</span>
+                <span class="trip-number-text">Trip: ${row.trip_number || '-'}</span>
+                <span class="destination-text">ปลายทาง: ${row.destination || '-'}</span>
+                <span class="remark-text">หมายเหตุ: ${row.destination_remark || '-'}</span>
             </div>
-            <button class="action-btn" onclick="openOrder('${row.id}')">
-                เปิด POD
+            <button class="action-btn" onclick="openOrder('${row.trip_number}', '${row.destination}')">
+                เปิดข้อมูล
             </button>
         </div>
         `;
-    }).join("");
-}
+            }).join("");
+        }
 
-async function searchOrders() {
-    currentLp1 = document.getElementById("license_plate1").value.trim();
-    currentLp2 = document.getElementById("license_plate2").value.trim();
-    currentLp3 = document.getElementById("license_plate3").value.trim();
-    const rawDate = document.getElementById("assignment_date").value;
-    currentAssignDate = formatDateToYYYYMMDD(rawDate);
+        async function searchOrders() {
+            currentTripNumber = document.getElementById("trip_number").value.trim();
 
-    if (!currentLp1 || !currentLp2 || !currentLp3 || !currentAssignDate) {
-        alert("กรุณากรอกข้อมูลทะเบียนรถและวันที่ให้ครบถ้วน");
-        return;
-    }
+            if (!currentTripNumber) {
+                alert("กรุณากรอก Trip Number");
+                return;
+            }
 
-    localStorage.setItem("hp_lp1", currentLp1);
-    localStorage.setItem("hp_lp2", currentLp2);
-    localStorage.setItem("hp_lp3", currentLp3);
-    localStorage.setItem("hp_date", currentAssignDate);
+            localStorage.setItem("hp_trip_number", currentTripNumber);
 
-    document.getElementById("result").innerHTML = `<div style="text-align:center; padding:10px; font-size:12px;">กำลังค้นหา...</div>`;
+            document.getElementById("result").innerHTML = `<div style="text-align:center; padding:10px; font-size:12px;">กำลังค้นหา...</div>`;
 
-    const result = await client
-        .from("TBL_KN_HP_POD_SHIPREF")
-        .select("id,order_number,status_code,assignment_date")
-        .eq("license_plate1", currentLp1)
-        .eq("license_plate2", currentLp2)
-        .eq("license_plate3", currentLp3)
-        .eq("assignment_date", currentAssignDate)
-        .order("order_number", { ascending: true });
+            // Query ตามเงื่อนไข: select distinct trip_number, destination, destination_remark from TBL_KN_HP_POD_SHIPREF where trip_number = ...
+            const result = await client
+                .from("TBL_KN_HP_POD_SHIPREF")
+                .select("trip_number,destination,destination_remark")
+                .eq("trip_number", currentTripNumber);
 
-    if (result.error) {
-        document.getElementById("result").innerHTML = `<div style="color:red; text-align:center; font-size:12px;">${result.error.message}</div>`;
-        return;
-    }
+            if (result.error) {
+                document.getElementById("result").innerHTML = `<div style="color:red; text-align:center; font-size:12px;">${result.error.message}</div>`;
+                return;
+            }
 
-    if (!result.data || result.data.length === 0) {
-        document.getElementById("result").innerHTML = `<div style="text-align:center; color:#777; padding:10px; font-size:12px;">ไม่พบข้อมูลงานสำหรับทะเบียนนี้ในวันที่เลือก</div>`;
-        return;
-    }
+            if (!result.data || result.data.length === 0) {
+                document.getElementById("result").innerHTML = `<div style="text-align:center; color:#777; padding:10px; font-size:12px;">ไม่พบข้อมูลสำหรับ Trip Number นี้</div>`;
+                return;
+            }
 
-    cachedOrders = result.data;
-    displayResults(cachedOrders);
-}
+            // กรองค่าที่ไม่ซ้ำกัน (Distinct) ฝั่ง JavaScript เพื่อความแม่นยำ
+            const uniqueMap = new Map();
+            result.data.forEach(item => {
+                const key = `${item.trip_number}|${item.destination}|${item.destination_remark}`;
+                if (!uniqueMap.has(key)) {
+                    uniqueMap.set(key, item);
+                }
+            });
 
-function displayResults(data) {
-    const pendingOrders = data.filter(row => row.status_code === null || row.status_code === "");
-    const completedOrders = data.filter(row => row.status_code === "D1" || row.status_code === "AP");
+            cachedOrders = Array.from(uniqueMap.values());
+            displayResults(cachedOrders);
+        }
 
-    let html = `
+        function displayResults(data) {
+            let html = `
     <div class="summary-bar">
-        <span>ทั้งหมด: ${cachedOrders.length} งาน</span>
-        <span style="color:#ff9800;">รอส่ง: ${cachedOrders.filter(r => !r.status_code).length}</span>
-        <span style="color:#28a745;">เสร็จ: ${cachedOrders.filter(r => r.status_code).length}</span>
+        <span>รายการทั้งหมด: ${cachedOrders.length} ปลายทาง</span>
     </div>
 
     <!-- พื้นที่แสดงกล้องสแกน (ซ่อนไว้ก่อนจนกว่าจะกดปุ่ม) -->
     <div id="reader"></div>
 
-    <!-- ช่องกรองด่วน + ปุ่มสแกน Barcode -->
+    <!-- ช่องกรองด่วน (ค้นหาจาก destination) + ปุ่มสแกน Barcode -->
     <div class="filter-row">
-        <input type="text" id="quickFilter" class="quick-filter-input" placeholder="🔍 พิมพ์หรือสแกน Barcode..." oninput="filterOrders()">
+        <input type="text" id="quickFilter" class="quick-filter-input" placeholder="🔍 กรองปลายทาง (Destination)..." oninput="filterOrders()">
         <button class="scan-barcode-btn" onclick="startScanner()">📷 สแกน</button>
     </div>
 
     <div>
-        <div class="column-header pending-header">
-            📌 งานที่ต้องจัดส่ง (<span id="pendingCount">${pendingOrders.length}</span>)
+        <div class="column-header">
+            📌 รายการปลายทาง (<span id="resultCount">${data.length}</span>)
         </div>
-        <div id="pendingList" style="margin-top: 4px;">
-            ${renderOrders(pendingOrders)}
+        <div id="orderList" style="margin-top: 4px;">
+            ${renderOrders(data)}
         </div>
     </div>
     `;
 
-    if (completedOrders.length > 0) {
-        html += `
-        <div style="margin-top: 6px;">
-            <button id="completed-btn" class="collapse-btn" onclick="toggleCompleted()">
-                ▶ แสดงรายการส่งสำเร็จแล้ว (<span id="completedCount">${completedOrders.length}</span>)
-            </button>
-            <div id="completed-content" class="hidden" style="margin-top: 4px;">
-                <div class="column-header completed-header">
-                    ✅ รายการที่ส่งสำเร็จแล้ว
-                </div>
-                <div id="completedList" style="margin-top: 4px;">
-                    ${renderOrders(completedOrders)}
-                </div>
-            </div>
-        </div>
-        `;
-    }
-
-    document.getElementById("result").innerHTML = html;
-}
-
-// ฟังก์ชันเปิดกล้องสแกน Barcode/QR Code
-function startScanner() {
-    const readerDiv = document.getElementById("reader");
-    readerDiv.style.display = "block";
-
-    if (!html5QrCode) {
-        html5QrCode = new Html5Qrcode("reader");
-    }
-
-    html5QrCode.start(
-        { facingMode: "environment" }, // ใช้กล้องหลัง
-        {
-            fps: 10,
-            qrbox: { width: 250, height: 100 }
-        },
-        (decodedText, decodedResult) => {
-            // เมื่อสแกนสำเร็จ
-            document.getElementById("quickFilter").value = decodedText;
-            filterOrders();
-            
-            // ปิดกล้องหลังสแกนสำเร็จ
-            html5QrCode.stop().then(() => {
-                readerDiv.style.display = "none";
-            }).catch(err => console.error(err));
-        },
-        (errorMessage) => {
-            // กำลังสแกนหา... (ปล่อยว่างไว้เพื่อไม่ให้ขึ้น Error log รบกวน)
+            document.getElementById("result").innerHTML = html;
         }
-    ).catch(err => {
-        alert("ไม่สามารถเปิดกล้องได้ กรุณาตรวจสอบสิทธิ์การใช้งานกล้อง: " + err);
-        readerDiv.style.display = "none";
-    });
-}
 
-function filterOrders() {
-    const keyword = document.getElementById("quickFilter").value.toLowerCase().trim();
-    
-    const filtered = cachedOrders.filter(row => 
-        row.order_number.toLowerCase().includes(keyword)
-    );
+        // ฟังก์ชันเปิดกล้องสแกน Barcode/QR Code
+        function startScanner() {
+            const readerDiv = document.getElementById("reader");
+            readerDiv.style.display = "block";
 
-    const pendingOrders = filtered.filter(row => row.status_code === null || row.status_code === "");
-    const completedOrders = filtered.filter(row => row.status_code === "D1" || row.status_code === "AP");
+            if (!html5QrCode) {
+                html5QrCode = new Html5Qrcode("reader");
+            }
 
-    document.getElementById("pendingList").innerHTML = renderOrders(pendingOrders);
-    document.getElementById("pendingCount").innerText = pendingOrders.length;
-    
-    const compList = document.getElementById("completedList");
-    if (compList) {
-        compList.innerHTML = renderOrders(completedOrders);
-        document.getElementById("completedCount").innerText = completedOrders.length;
-    }
-}
+            html5QrCode.start(
+                { facingMode: "environment" }, // ใช้กล้องหลัง
+                {
+                    fps: 10,
+                    qrbox: { width: 250, height: 100 }
+                },
+                (decodedText, decodedResult) => {
+                    // เมื่อสแกนสำเร็จ นำไปกรองที่ Quick Filter
+                    document.getElementById("quickFilter").value = decodedText;
+                    filterOrders();
 
-function openOrder(id) {
-    window.location.href = `index.html?id=${id}&lp1=${encodeURIComponent(currentLp1)}&lp2=${encodeURIComponent(currentLp2)}&lp3=${encodeURIComponent(currentLp3)}&date=${currentAssignDate}`;
-}
+                    // ปิดกล้องหลังสแกนสำเร็จ
+                    html5QrCode.stop().then(() => {
+                        readerDiv.style.display = "none";
+                    }).catch(err => console.error(err));
+                },
+                (errorMessage) => {
+                    // กำลังสแกนหา...
+                }
+            ).catch(err => {
+                alert("ไม่สามารถเปิดกล้องได้ กรุณาตรวจสอบสิทธิ์การใช้งานกล้อง: " + err);
+                readerDiv.style.display = "none";
+            });
+        }
 
-</script>
+        // แก้ไข QuickFilter ให้ไปค้นหาจาก destination ตามข้อ 5
+        function filterOrders() {
+            const keyword = document.getElementById("quickFilter").value.toLowerCase().trim();
+
+            const filtered = cachedOrders.filter(row =>
+                row.destination && row.destination.toLowerCase().includes(keyword)
+            );
+
+            document.getElementById("orderList").innerHTML = renderOrders(filtered);
+            document.getElementById("resultCount").innerText = filtered.length;
+        }
+
+        // แก้ไขฟังก์ชัน openOrder ใน search.html ให้แนบค่า destination ไปด้วย
+        function openOrder(tripNumber, destination) {
+            window.location.href = `index.html?trip_number=${encodeURIComponent(tripNumber)}&destination=${encodeURIComponent(destination)}`;
+        }
+
+    </script>
 
 </body>
+
 </html>
